@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Treino de Concurso — Curitiba</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F4D3D">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #F6F4EE;
+    --surface: #FFFFFF;
+    --ink: #1C2521;
+    --ink-soft: #5B655F;
+    --primary: #1F4D3D;
+    --primary-ink: #FFFFFF;
+    --accent: #B98A2E;
+    --line: #E1DDD1;
+    --correct: #1F7A4D;
+    --correct-bg: #E6F3EB;
+    --wrong: #AA3B2E;
+    --wrong-bg: #FBEAE7;
+    --new-c: #6B7280;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #131A17; --surface: #1C2621; --ink: #EDEFEC; --ink-soft: #9DAAA3;
+      --primary: #5FAE86; --primary-ink: #0C130F; --accent: #E0B45C; --line: #2E3A34;
+      --correct: #6FCB94; --correct-bg: #16281F; --wrong: #E58A7C; --wrong-bg: #2C1915;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #131A17; --surface: #1C2621; --ink: #EDEFEC; --ink-soft: #9DAAA3;
+    --primary: #5FAE86; --primary-ink: #0C130F; --accent: #E0B45C; --line: #2E3A34;
+    --correct: #6FCB94; --correct-bg: #16281F; --wrong: #E58A7C; --wrong-bg: #2C1915;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 20px 18px 56px; }
+  a { color: inherit; }
+
+  header.top { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; gap: 10px; }
+  .brand { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .brand small { display:block; font-weight:400; color: var(--ink-soft); font-size: 11.5px; margin-top:2px; }
+  .streak-chip {
+    display:flex; align-items:center; gap:5px; background: var(--surface); border:1px solid var(--line);
+    padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight:600; color: var(--accent); white-space:nowrap;
+  }
+  .icon-btn {
+    background: var(--surface); border:1px solid var(--line); border-radius: 10px;
+    width: 38px; height: 38px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px;
+  }
+  .toolbar { display:flex; gap:8px; margin-bottom: 18px; }
+
+  h2.section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 22px 0 10px; font-weight: 700; }
+
+  .review-banner {
+    background: var(--surface); border: 1.5px solid var(--accent); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 18px; display:none;
+  }
+  .review-banner.show { display:block; }
+  .review-banner p { margin: 0 0 10px; font-size: 14px; line-height: 1.45; }
+  .review-banner button { width: 100%; }
+
+  .deck-card {
+    display:flex; align-items:center; gap: 14px; background: var(--surface); border: 1px solid var(--line);
+    border-left: 6px solid var(--deck-color, var(--primary)); border-radius: var(--radius);
+    padding: 15px 16px; margin-bottom: 10px; cursor:pointer; text-align:left; width:100%;
+  }
+  .deck-card .emoji { font-size: 26px; flex:none; }
+  .deck-card .info { flex:1; min-width:0; }
+  .deck-card .name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .deck-card .sub { font-size: 12.5px; color: var(--ink-soft); }
+  .deck-card .pct { font-size: 18px; font-weight: 800; color: var(--deck-color, var(--primary)); flex:none; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 20px; }
+
+  .progress-track { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin: 6px 0 22px; }
+  .progress-fill { height: 100%; background: var(--deck-color, var(--primary)); border-radius: 999px; transition: width .35s ease; }
+  .meta-row { display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
+  .question { font-size:17px; line-height:1.5; font-weight:600; margin:0 0 18px; }
+  .tag-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .tag { display:inline-block; font-size:11.5px; color: var(--deck-color, var(--primary));
+    background: color-mix(in srgb, var(--deck-color, var(--primary)) 14%, transparent); padding:3px 9px; border-radius:999px; }
+  .status-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .status-new { background: var(--new-c); }
+  .status-weak { background: var(--wrong); }
+  .status-mastered { background: var(--correct); }
+
+  .options { display:flex; flex-direction:column; gap:9px; }
+  button.opt {
+    text-align:left; padding:12px 14px; border-radius:10px; border:1px solid var(--line); background: var(--bg);
+    color: var(--ink); font-size:14.5px; line-height:1.4; cursor:pointer; display:flex; gap:10px;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  button.opt:hover:not(:disabled) { border-color: var(--deck-color, var(--primary)); }
+  button.opt .letter { flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--ink-soft);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--ink-soft); }
+  button.opt:disabled { cursor:default; }
+  button.opt.correct { background: var(--correct-bg); border-color: var(--correct); color: var(--correct); }
+  button.opt.correct .letter { border-color: var(--correct); color: var(--correct); }
+  button.opt.wrong { background: var(--wrong-bg); border-color: var(--wrong); color: var(--wrong); }
+  button.opt.wrong .letter { border-color: var(--wrong); color: var(--wrong); }
+  button.opt.dim { opacity: .5; }
+
+  .feedback { margin-top:16px; padding:14px; border-radius:10px; font-size:13.5px; line-height:1.5; display:none; }
+  .feedback.show { display:block; }
+  .feedback.ok { background: var(--correct-bg); color: var(--correct); }
+  .feedback.no { background: var(--wrong-bg); color: var(--wrong); }
+
+  .next-row { margin-top:18px; display:flex; justify-content:flex-end; }
+  button.primary {
+    background: var(--deck-color, var(--primary)); color: var(--primary-ink); border:none; padding:11px 20px;
+    border-radius:999px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button.primary.ghost { background: transparent; color: var(--deck-color, var(--primary)); border: 1.5px solid var(--deck-color, var(--primary)); }
+  button.block { width: 100%; }
+  button:active { transform: scale(0.98); }
+
+  .intro, .result { text-align:center; padding: 6px 2px; }
+  .intro h1, .result h1 { font-size: 22px; margin: 6px 0 8px; color: var(--deck-color, var(--primary)); }
+  .intro p, .result p { color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+  .score-big { font-size: 46px; font-weight: 800; color: var(--accent); margin: 14px 0 4px; }
+
+  .missed-list { text-align:left; margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+  .missed-list h2 { font-size:13px; color:var(--ink-soft); margin-bottom:10px; text-transform:none; }
+  .missed-item { font-size:13.5px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .missed-item:last-child { border-bottom:none; }
+  .missed-item .q { font-weight:600; margin-bottom:4px; }
+  .missed-item .a { color: var(--correct); }
+
+  .back-row { margin-bottom: 14px; }
+  .back-link { font-size:13.5px; color: var(--ink-soft); background:none; border:none; cursor:pointer; padding:4px 0; display:flex; align-items:center; gap:4px; }
+
+  .stat-block { background: var(--surface); border:1px solid var(--line); border-radius: var(--radius); padding:16px; margin-bottom:14px; }
+  .stat-block h3 { font-size: 13.5px; margin: 0 0 12px; color: var(--ink-soft); font-weight:700; }
+  .bar-row { display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:13px; }
+  .bar-row .lbl { flex: 0 0 110px; color: var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bar-track { flex:1; height: 9px; background: var(--line); border-radius: 999px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:999px; }
+  .bar-pct { flex: 0 0 34px; text-align:right; font-weight:700; font-size:12.5px; }
+
+  .day-chart { display:flex; align-items:flex-end; gap:5px; height: 90px; }
+  .day-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:2px; height:100%; }
+  .day-bar-wrap { width:100%; display:flex; flex-direction:column-reverse; height:100%; justify-content:flex-start; gap:1px; }
+  .day-bar { width:100%; border-radius: 3px 3px 0 0; min-height:2px; }
+  .day-label { font-size: 9.5px; color: var(--ink-soft); margin-top:4px; }
+
+  .weak-item { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .weak-item:last-child { border-bottom:none; }
+  .weak-item .q { flex:1; }
+  .weak-chip { font-size:11px; background: var(--wrong-bg); color:var(--wrong); padding:2px 8px; border-radius:999px; flex:none; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display:block; font-size:13px; color: var(--ink-soft); margin-bottom:6px; }
+  input[type=file] { width:100%; font-size:13px; }
+  .file-drop { border:2px dashed var(--line); border-radius: var(--radius); padding:26px 16px; text-align:center; color: var(--ink-soft); font-size:13.5px; }
+  .preview-box { background: var(--bg); border:1px solid var(--line); border-radius: 10px; padding:14px; font-size:13.5px; margin:14px 0; line-height:1.6; }
+  .notice { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin-top: 10px; }
+  .toast {
+    position: fixed; left:50%; bottom: calc(24px + env(safe-area-inset-bottom,0px)); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size:13px;
+    opacity:0; pointer-events:none; transition: opacity .25s ease; z-index:50; max-width: 90%; text-align:center;
+  }
+  .toast.show { opacity: 1; }
+
+  .hidden { display:none !important; }
+  footer.hint { text-align:center; color: var(--ink-soft); font-size:12px; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="appRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================= DATA ============================= */
+const PALETTE = ["#1F4D3D", "#2E5CA8", "#A8562E", "#6B3FA0", "#B9862E", "#2E8E8A"];
+
+const SEED_DECKS = {
+  "lei-organica": {
+    id: "lei-organica", name: "Lei Orgânica de Curitiba", color: "#1F4D3D", emoji: "🏛️",
+    questions: [
+{id:"LO-01",topic:"Título I",q:"Qual a natureza jurídica do Município de Curitiba segundo o art. 1º?",opts:["Pessoa jurídica de direito privado, com autonomia apenas administrativa","Pessoa jurídica de direito público interno, com autonomia política, administrativa e financeira","Ente federativo com autonomia apenas política","Órgão do Estado do Paraná sem autonomia própria","Pessoa jurídica de direito público externo"],correct:1,exp:"O art. 1º fixa a tríade: autonomia política, administrativa e financeira."},
+{id:"LO-02",topic:"Título I",q:"Qual é a data magna do Município de Curitiba?",opts:["19 de dezembro","7 de setembro","29 de março","24 de março","1º de janeiro"],correct:2,exp:"29 de março é a data magna de Curitiba (art. 9º)."},
+{id:"LO-03",topic:"Título II",q:"São Poderes do Município de Curitiba:",opts:["Legislativo, Executivo e Judiciário","Apenas o Executivo","Legislativo e Executivo, independentes e harmônicos entre si","Legislativo, subordinado ao Executivo","Executivo e Judiciário"],correct:2,exp:"O Município só tem Legislativo e Executivo — não existe Judiciário municipal."},
+{id:"LO-04",topic:"Título II",q:"Sobre a delegação de atribuições entre os Poderes Legislativo e Executivo, a Lei Orgânica estabelece que:",opts:["É permitida mediante aprovação da Câmara","É permitida apenas em calamidade pública","É vedada","É permitida se autorizada pelo Tribunal de Contas","É permitida apenas ao final do mandato"],correct:2,exp:"É vedado a qualquer um dos Poderes delegar atribuições ao outro (art. 15) — regra sem exceções."},
+{id:"LO-05",topic:"Título II",q:"O número de Vereadores da Câmara Municipal de Curitiba é definido por:",opts:["Decreto do Prefeito","Resolução da Câmara","Lei complementar, respeitando os limites da Constituição Federal","Lei ordinária","Emenda à Lei Orgânica"],correct:2,exp:"Art. 18: lei complementar, dentro dos limites fixados pela CF."},
+{id:"LO-06",topic:"Título I",q:"Assinale a vedação ao Município prevista no art. 14:",opts:["Prestar serviços de saúde à população","Manter culto religioso oficial","Criar tributos municipais","Elaborar o Plano Diretor","Fiscalizar o trânsito local"],correct:1,exp:"O Município não pode manter culto religioso oficial, entre outras vedações do art. 14."},
+{id:"LO-07",topic:"Título II",q:"Quem exerce o Poder Executivo do Município?",opts:["A Câmara Municipal","O Vice-Prefeito isoladamente","O Prefeito, auxiliado pelos Secretários Municipais","O Presidente da Câmara","O Tribunal de Contas"],correct:2,exp:"Art. 65: o Executivo é exercido pelo Prefeito, auxiliado pelos Secretários."},
+{id:"LO-08",topic:"Título II",q:"Em caso de dupla vacância de Prefeito e Vice, fora dos últimos dois anos do mandato:",opts:["O Presidente da Câmara assume até o fim do mandato","Nova eleição em até 90 dias","O Governador do Estado nomeia um interventor","A Câmara é dissolvida","O cargo permanece vago até o próximo pleito ordinário"],correct:1,exp:"Fora dos últimos 2 anos, a regra é nova eleição direta em 90 dias (art. 70)."},
+{id:"LO-09",topic:"Título II",q:"É competência PRIVATIVA da Câmara Municipal:",opts:["Sancionar leis ordinárias","Nomear Secretários Municipais","Julgar as contas do Prefeito","Administrar os bens do Executivo","Representar o Município judicialmente"],correct:2,exp:"Julgar as contas do Prefeito é competência privativa da Câmara (art. 20)."},
+{id:"LO-10",topic:"Título II",q:"Desde a posse, o Vereador NÃO pode:",opts:["Filiar-se a partido político","Ser proprietário de empresa favorecida por contrato com o Município","Participar de sessões da Câmara","Apresentar projetos de lei","Votar em matérias de interesse local"],correct:1,exp:"Art. 21, II: não pode ser dono/diretor de empresa favorecida por contrato com o Município."},
+{id:"LO-11",topic:"Título II",q:"O Vereador perde o mandato quando:",opts:["Se ausenta por até 2 sessões justificadas","Assume cargo de Secretário Municipal","Falta a 1/3 das sessões ordinárias sem justificativa","Vota contra o próprio partido","Se licencia por motivo de saúde"],correct:2,exp:"Faltar a 1/3 das sessões sem justificativa é causa de perda de mandato (art. 22). Assumir Secretaria NÃO causa perda (art. 23)."},
+{id:"LO-12",topic:"Título II",q:"A emenda à Lei Orgânica pode ser proposta por:",opts:["Qualquer cidadão isoladamente","1/3 dos Vereadores, pelo Prefeito, ou por 5% do eleitorado","Somente pelo Prefeito","Somente pela maioria absoluta da Câmara","Somente pelo Tribunal de Contas"],correct:1,exp:"Art. 51: três legitimados possíveis — 1/3 dos Vereadores, Prefeito, ou 5% do eleitorado."},
+{id:"LO-13",topic:"Título II",q:"Para ser aprovada, uma emenda à Lei Orgânica precisa de:",opts:["Maioria simples em um único turno","Dois turnos de votação, com 2/3 dos votos em cada um","Aprovação apenas do Prefeito","Um turno de votação por maioria absoluta","Plebiscito obrigatório"],correct:1,exp:"Dois turnos, 2/3 dos votos em cada (art. 51) — mais rígido que lei comum."},
+{id:"LO-14",topic:"Título II",q:"É de iniciativa PRIVATIVA do Executivo o projeto de lei que trate de:",opts:["Criação de comissões permanentes da Câmara","Regime jurídico dos servidores municipais","Concessão de honrarias e títulos","Regimento Interno da Câmara","Convocação de plebiscito"],correct:1,exp:"Art. 53: regime jurídico dos servidores é iniciativa privativa do Executivo."},
+{id:"LO-15",topic:"Título II",q:"O prazo que o Prefeito tem para vetar total ou parcialmente um projeto de lei é de:",opts:["5 dias corridos","10 dias úteis","15 dias úteis","30 dias corridos","60 dias úteis"],correct:2,exp:"15 dias úteis (art. 57) — repare: dias ÚTEIS, não corridos."},
+{id:"LO-16",topic:"Título II",q:"A administração indireta do Município é composta por:",opts:["Apenas as Secretarias Municipais","Autarquias, fundações públicas, empresas públicas e sociedades de economia mista","Somente a Guarda Municipal","Apenas o Tribunal de Contas","A Câmara Municipal e suas comissões"],correct:1,exp:"Secretarias são administração DIRETA; a indireta são essas 4 categorias de entidade (art. 77)."},
+{id:"LO-17",topic:"Título II",q:"São princípios expressos no art. 80 que regem a Administração Pública Municipal:",opts:["Legalidade, impessoalidade, moralidade, publicidade, eficiência e razoabilidade","Apenas legalidade e eficiência","Hierarquia, subordinação e centralização","Moralidade, lucratividade e sigilo","Publicidade, confidencialidade e economicidade"],correct:0,exp:"É o LIMPE da CF + razoabilidade, que a Lei Orgânica acrescenta."},
+{id:"LO-18",topic:"Título II",q:"A idade mínima para aposentadoria voluntária do servidor municipal efetivo é (regra atualizada):",opts:["55 anos para mulheres e 60 para homens","60 anos para ambos os sexos","62 anos para mulheres e 65 para homens","65 anos para ambos os sexos","Não há idade mínima, apenas tempo de contribuição"],correct:2,exp:"62/65 é a regra pós-reforma (Emenda nº 21/2021)."},
+{id:"LO-19",topic:"Título II",q:"A estabilidade do servidor público municipal efetivo é adquirida após:",opts:["1 ano de exercício","2 anos de exercício","3 anos de efetivo exercício, mediante avaliação especial de desempenho","5 anos de exercício","Imediatamente após a posse"],correct:2,exp:"3 anos é a regra da CF (art. 41), que prevalece sobre o texto antigo do Estatuto de 1958."},
+{id:"LO-20",topic:"Título II",q:"Os bens municipais classificam-se em:",opts:["Públicos e privados, apenas","De uso comum do povo, de uso especial e dominicais","Móveis e imóveis, apenas","Federais, estaduais e municipais","Onerosos e gratuitos"],correct:1,exp:"Classificação própria da Lei Orgânica (art. 112)."},
+{id:"LO-21",topic:"Título I",q:"São objetivos fundamentais do Município, conforme o art. 4º:",opts:["Centralização administrativa e sigilo dos atos públicos","Harmonia entre os Poderes, participação popular e universalização dos serviços públicos","Concentração de poder no Executivo","Exclusividade religiosa nas cerimônias oficiais","Restrição da cooperação com outros entes federativos"],correct:1,exp:"Art. 4º lista objetivos como harmonia, participação popular, universalização dos serviços, entre outros."},
+{id:"LO-22",topic:"Título I",q:"Segundo o art. 6º, os direitos e garantias previstos na Lei Orgânica:",opts:["Substituem integralmente os da Constituição Federal","Não excluem outros previstos na Constituição Federal e na Constituição Estadual","Só valem durante o mandato do Prefeito em exercício","Aplicam-se apenas aos servidores públicos","Podem ser suspensos por decreto municipal"],correct:1,exp:"É uma cláusula de abertura: soma, não substitui, os direitos da CF/CE."},
+{id:"LO-23",topic:"Título I",q:"O povo pode exercer o poder diretamente, segundo o art. 7º, por meio de:",opts:["Apenas eleições para Prefeito","Iniciativa popular, referendo e plebiscito","Nomeação de Secretários Municipais","Decisão exclusiva da Câmara Municipal","Apenas audiências públicas facultativas"],correct:1,exp:"Além do voto, há 3 instrumentos de democracia direta: iniciativa popular, referendo e plebiscito."},
+{id:"LO-24",topic:"Título I",q:"A alteração do território do Município de Curitiba depende de:",opts:["Decreto do Prefeito","Deliberação exclusiva da Câmara, sem outras condições","Respeito à Constituição Federal e à legislação estadual pertinente","Plebiscito nacional","Autorização do Tribunal de Contas da União"],correct:2,exp:"Art. 8º: segue a CF e a legislação ESTADUAL."},
+{id:"LO-25",topic:"Título I",q:"São símbolos do Município de Curitiba, conforme o art. 9º:",opts:["Apenas a bandeira","Brasão, bandeira e hino, entre outros definidos em lei","Somente o hino municipal","O escudo da Câmara Municipal","Não há símbolos previstos na Lei Orgânica"],correct:1,exp:"Brasão, bandeira, hino e outros que a lei definir."},
+{id:"LO-26",topic:"Título I",q:"É competência específica do Município, na área financeiro-orçamentária:",opts:["Elaborar o Plano Plurianual, a LDO e a Lei Orçamentária Anual","Fixar a política monetária nacional","Definir alíquotas de tributos federais","Aprovar o orçamento da União","Administrar o Tesouro Nacional"],correct:0,exp:"PPA, LDO e LOA são instrumentos orçamentários do próprio Município (art. 11)."},
+{id:"LO-27",topic:"Título I",q:"A competência suplementar do Município (art. 12) permite que ele:",opts:["Substitua integralmente as leis federais","Complemente normas gerais da União e do Estado quando houver interesse local","Revogue leis estaduais","Legisle sobre matéria penal","Crie tributos de competência exclusiva da União"],correct:1,exp:"Suplementar = complementar normas gerais, nunca substituir."},
+{id:"LO-28",topic:"Título I",q:"É exemplo de competência concorrente-cumulativa do Município com a União e o Estado:",opts:["Emitir moeda","Proteger o patrimônio histórico, artístico e cultural","Declarar guerra","Legislar sobre direito civil","Administrar as Forças Armadas"],correct:1,exp:"Proteção ao patrimônio histórico/cultural é compartilhada entre os três entes (art. 13)."},
+{id:"LO-29",topic:"Título II",q:"A Câmara Municipal delibera, COM SANÇÃO do Prefeito, sobre matérias como:",opts:["Eleição da própria Mesa Diretora","Matéria financeira, tributária e orçamentária","Concessão de honrarias","Julgamento das contas do Prefeito","Elaboração do próprio Regimento Interno"],correct:1,exp:"Matéria financeira precisa de sanção do Prefeito (art. 19)."},
+{id:"LO-30",topic:"Título II",q:"Para aprovar o Regimento Interno da Câmara, exige-se quórum de:",opts:["Maioria simples","2/3 dos votos","Unanimidade","Maioria absoluta apenas","3/5 dos votos"],correct:1,exp:"Regimento Interno exige 2/3 dos votos (art. 47)."},
+{id:"LO-31",topic:"Título II",q:"A regra geral de quórum para deliberações da Câmara, quando a lei não exige quórum especial, é:",opts:["Unanimidade","2/3 dos votos","Maioria simples, com maioria absoluta dos membros presente","3/5 dos votos","Apenas o voto do Presidente da Mesa"],correct:2,exp:"Regra padrão do art. 48."},
+{id:"LO-32",topic:"Título II",q:"São tipos de normas do processo legislativo municipal (art. 50):",opts:["Apenas leis ordinárias","Emendas à Lei Orgânica, leis complementares, leis ordinárias, decretos legislativos e resoluções","Somente decretos do Executivo","Apenas resoluções internas da Câmara","Medidas provisórias municipais"],correct:1,exp:"5 tipos de norma — não existe medida provisória municipal."},
+{id:"LO-33",topic:"Título II",q:"A iniciativa popular de projeto de lei municipal exige a manifestação de:",opts:["1% do eleitorado","5% do eleitorado do Município","10% dos Vereadores","Maioria absoluta da Câmara","Apenas um cidadão, mediante justificativa"],correct:1,exp:"5% do eleitorado (art. 55)."},
+{id:"LO-34",topic:"Título II",q:"A fiscalização contábil, financeira e orçamentária do Município é exercida:",opts:["Exclusivamente pelo Prefeito","Pela Câmara Municipal, com auxílio do Tribunal de Contas do Estado, e por controle interno de cada Poder","Apenas pelo Tribunal de Contas da União","Pela Guarda Municipal","Exclusivamente pela Procuradoria-Geral"],correct:1,exp:"Controle externo (Câmara + TCE) e controle interno de cada Poder (arts. 59-60)."},
+{id:"LO-35",topic:"Título II",q:"Podem denunciar irregularidades ao Tribunal de Contas, segundo a Lei Orgânica:",opts:["Apenas o Prefeito","Apenas Vereadores","Qualquer cidadão, partido político ou entidade sindical","Somente o Ministério Público","Apenas servidores públicos municipais"],correct:2,exp:"Art. 63 nomeia especificamente esses três legitimados."},
+{id:"LO-36",topic:"Título II",q:"A Ouvidoria do Município está vinculada a qual Poder?",opts:["Executivo","Legislativo","Judiciário","Tribunal de Contas","Não possui vinculação a nenhum Poder"],correct:1,exp:"Contraintuitivo: é do Legislativo (art. 64)."},
+{id:"LO-37",topic:"Título II",q:"Prefeito e Vice-Prefeito não podem se ausentar do País ou do Município por mais de quantos dias sem autorização da Câmara?",opts:["5 dias","10 dias","15 dias","30 dias","45 dias"],correct:2,exp:"15 dias (art. 71)."},
+{id:"LO-38",topic:"Título II",q:"O Procurador-Geral do Município é:",opts:["Eleito diretamente pela população","De livre nomeação do Prefeito, mas o ingresso na carreira depende de concurso público","Nomeado pela Câmara Municipal","Cargo vitalício sem processo seletivo","Escolhido por sorteio entre os Procuradores"],correct:1,exp:"Chefia de confiança, mas a carreira exige concurso (art. 74)."},
+{id:"LO-39",topic:"Título II",q:"As infrações político-administrativas do Prefeito são processadas e julgadas por:",opts:["O Tribunal de Justiça do Estado","O Tribunal de Contas","A Câmara Municipal","O Ministério Público","A Procuradoria-Geral do Município"],correct:2,exp:"A própria Câmara julga (art. 75)."},
+{id:"LO-40",topic:"Título II",q:"O teto de remuneração dos servidores públicos municipais é:",opts:["O salário mínimo nacional","O valor recebido pelo Prefeito","O subsídio dos Ministros do STF","Não há teto definido","O valor recebido pelo Presidente da Câmara"],correct:1,exp:"Art. 80: teto é o subsídio do Prefeito."}
+    ]
+  }
+};
+
+/* ============================= STORAGE ============================= */
+const LS = {
+  decks: "qc_decks_v1",
+  progress: "qc_progress_v1",
+  daily: "qc_daily_v1",
+  streak: "qc_streak_v1",
+};
+
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) { return fallback; }
+}
+function saveJSON(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+  catch (e) { return false; }
+}
+
+let decks = loadJSON(LS.decks, null);
+if (!decks) { decks = JSON.parse(JSON.stringify(SEED_DECKS)); saveJSON(LS.decks, decks); }
+let progress = loadJSON(LS.progress, {});
+let daily = loadJSON(LS.daily, {});
+let streak = loadJSON(LS.streak, { lastDate: null, count: 0 });
+
+function persistAll() {
+  saveJSON(LS.decks, decks);
+  saveJSON(LS.progress, progress);
+  saveJSON(LS.daily, daily);
+  saveJSON(LS.streak, streak);
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function daysBetween(a, b) {
+  return Math.round((new Date(b+"T00:00:00") - new Date(a+"T00:00:00")) / 86400000);
+}
+
+/* ============================= PROGRESS LOGIC ============================= */
+const INTERVALS = [1, 3, 7, 9999]; // days per box (box index after answering)
+
+function getProg(qid) {
+  return progress[qid] || { box: 0, nextReview: null, seen: 0, correct: 0, wrong: 0, lastResult: null };
+}
+function qStatus(qid) {
+  const p = progress[qid];
+  if (!p || p.seen === 0) return "new";
+  if (p.box >= 3) return "mastered";
+  return "weak";
+}
+function isDue(qid) {
+  const p = progress[qid];
+  if (!p || p.seen === 0) return false;
+  if (p.box >= 3) return false;
+  return !p.nextReview || p.nextReview <= todayStr();
+}
+
+function recordAnswer(qid, correct) {
+  const p = getProg(qid);
+  p.seen++;
+  if (correct) { p.correct++; p.box = Math.min(p.box + 1, 3); p.lastResult = "correct"; }
+  else { p.wrong++; p.box = 0; p.lastResult = "wrong"; }
+  p.nextReview = addDays(todayStr(), INTERVALS[p.box]);
+  progress[qid] = p;
+
+  const t = todayStr();
+  if (!daily[t]) daily[t] = { correct: 0, wrong: 0 };
+  if (correct) daily[t].correct++; else daily[t].wrong++;
+
+  if (streak.lastDate !== t) {
+    if (streak.lastDate && daysBetween(streak.lastDate, t) === 1) streak.count++;
+    else streak.count = 1;
+    streak.lastDate = t;
+  }
+  persistAll();
+}
+
+function allQuestionsFlat() {
+  const out = [];
+  Object.values(decks).forEach(d => d.questions.forEach(q => out.push(Object.assign({ deckId: d.id, deckName: d.name, deckColor: d.color }, q))));
+  return out;
+}
+function deckQuestionsFlat(deckId) {
+  const d = decks[deckId];
+  if (!d) return [];
+  return d.questions.map(q => Object.assign({ deckId: d.id, deckName: d.name, deckColor: d.color }, q));
+}
+function dueCount(scopeQuestions) {
+  return scopeQuestions.filter(q => isDue(q.id)).length;
+}
+function weakList(scopeQuestions) {
+  return scopeQuestions.filter(q => qStatus(q.id) === "weak");
+}
+function deckAccuracy(deckId) {
+  const qs = deckQuestionsFlat(deckId);
+  let c = 0, t = 0;
+  qs.forEach(q => { const p = progress[q.id]; if (p && p.seen) { c += p.correct; t += p.seen; } });
+  return t ? Math.round((c / t) * 100) : null;
+}
+
+/* ============================= UI STATE / ROUTER ============================= */
+const root = document.getElementById("appRoot");
+let session = null; // {scopeName, color, questions, order, current, score, missed, deckColorVar}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+function setDeckColorVar(color) {
+  document.documentElement.style.setProperty("--deck-color", color || "#1F4D3D");
+}
+
+function go(view, params) {
+  params = params || {};
+  if (view === "home") renderHome();
+  else if (view === "quiz-start") startQuiz(params.deckId, params.reviewOnly);
+  else if (view === "stats") renderStats();
+  else if (view === "import") renderImport();
+  else if (view === "backup") renderBackup();
+}
+
+/* ---------- HOME ---------- */
+function renderHome() {
+  setDeckColorVar("#1F4D3D");
+  const deckList = Object.values(decks);
+  const allQs = allQuestionsFlat();
+  const due = dueCount(allQs);
+
+  let html = `
+  <header class="top">
+    <div class="brand">Treino de Concurso<small>Prefeitura de Curitiba</small></div>
+    <div class="streak-chip">🔥 ${streak.count || 0}</div>
+  </header>
+  <div class="toolbar">
+    <button class="icon-btn" title="Importar perguntas" onclick="go('import')">📥</button>
+    <button class="icon-btn" title="Estatísticas" onclick="go('stats')">📊</button>
+    <button class="icon-btn" title="Backup" onclick="go('backup')">💾</button>
+  </div>
+  <div class="review-banner ${due > 0 ? 'show' : ''}">
+    <p><b>${due} pergunta${due===1?'':'s'}</b> pronta${due===1?'':'s'} para revisão hoje.</p>
+    <button class="primary block" onclick="startDueReview()">Revisar agora</button>
+  </div>
+  <h2 class="section-title">Baralhos</h2>`;
+
+  deckList.forEach(d => {
+    const acc = deckAccuracy(d.id);
+    html += `
+    <button class="deck-card" style="--deck-color:${d.color}" onclick="go('quiz-start',{deckId:'${d.id}'})">
+      <span class="emoji">${d.emoji || "📘"}</span>
+      <span class="info">
+        <span class="name">${d.name}</span>
+        <span class="sub">${d.questions.length} perguntas${acc!==null ? ' · ' + acc + '% de acerto' : ' · ainda não treinado'}</span>
+      </span>
+      <span class="pct">${acc !== null ? acc + '%' : '—'}</span>
+    </button>`;
+  });
+
+  html += `
+    <button class="deck-card" style="--deck-color:#333" onclick="go('quiz-start',{deckId:'all'})">
+      <span class="emoji">🗂️</span>
+      <span class="info">
+        <span class="name">Todas as leis (unificado)</span>
+        <span class="sub">${allQs.length} perguntas no total</span>
+      </span>
+      <span class="pct">→</span>
+    </button>
+  <footer class="hint">Progresso salvo neste navegador. Use o backup (💾) para não perder nada.</footer>`;
+
+  root.innerHTML = html;
+}
+function startDueReview() {
+  const allQs = allQuestionsFlat();
+  const due = allQs.filter(q => isDue(q.id));
+  launchSession("Revisão do dia", "#B98A2E", due);
+}
+
+/* ---------- QUIZ ---------- */
+function startQuiz(deckId, reviewOnly) {
+  let qs, name, color;
+  if (deckId === "all") { qs = allQuestionsFlat(); name = "Todas as leis"; color = "#333333"; }
+  else { const d = decks[deckId]; qs = deckQuestionsFlat(deckId); name = d.name; color = d.color; }
+  if (reviewOnly) qs = qs.filter(q => qStatus(q.id) === "weak");
+  if (qs.length === 0) { toast("Não há perguntas nessa seleção ainda."); renderHome(); return; }
+  launchSession(name, color, qs);
+}
+function launchSession(name, color, questions) {
+  setDeckColorVar(color);
+  session = {
+    name, color,
+    questions,
+    order: shuffle(questions.map((_, i) => i)),
+    current: 0, score: 0, missed: [],
+  };
+  renderQuizScreen();
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function renderQuizScreen() {
+  root.innerHTML = `
+  <div class="back-row"><button class="back-link" onclick="confirmExitQuiz()">← Voltar</button></div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="meta-row"><span id="counter"></span><span id="scoreNow"></span></div>
+  <div class="card">
+    <div class="tag-row"><span class="tag" id="qTag"></span><span class="status-dot" id="statusDot"></span></div>
+    <p class="question" id="qText"></p>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="next-row"><button class="primary" id="nextBtn" style="display:none"></button></div>
+  </div>`;
+  document.getElementById("nextBtn").addEventListener("click", nextQuestion);
+  renderQuestion();
+}
+function confirmExitQuiz() { session = null; renderHome(); }
+
+function renderQuestion() {
+  const s = session;
+  const q = s.questions[s.order[s.current]];
+  document.getElementById("qTag").textContent = `${s.name} · ${q.topic || ""}`;
+  document.getElementById("qText").textContent = q.q;
+  document.getElementById("counter").textContent = `Questão ${s.current+1} de ${s.questions.length}`;
+  document.getElementById("scoreNow").textContent = `Acertos: ${s.score}`;
+  document.getElementById("progressFill").style.width = `${(s.current/s.questions.length)*100}%`;
+  const dot = document.getElementById("statusDot");
+  const st = qStatus(q.id);
+  dot.className = "status-dot status-" + st;
+  dot.title = st === "new" ? "Nunca vista" : st === "mastered" ? "Dominada" : "Ponto fraco";
+  const fb = document.getElementById("feedback");
+  fb.className = "feedback"; fb.textContent = "";
+  document.getElementById("nextBtn").style.display = "none";
+
+  const optsWrap = document.getElementById("options");
+  optsWrap.innerHTML = "";
+  const letters = ["A","B","C","D","E"];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "opt";
+    btn.innerHTML = `<span class="letter">${letters[i]}</span><span>${opt}</span>`;
+    btn.addEventListener("click", () => selectAnswer(i, q));
+    optsWrap.appendChild(btn);
+  });
+}
+function selectAnswer(i, q) {
+  const s = session;
+  const buttons = document.querySelectorAll("#options button.opt");
+  buttons.forEach((b, idx) => {
+    b.disabled = true;
+    if (idx === q.correct) b.classList.add("correct");
+    else if (idx === i) b.classList.add("wrong");
+    else b.classList.add("dim");
+  });
+  const correct = i === q.correct;
+  recordAnswer(q.id, correct);
+  if (correct) s.score++; else s.missed.push(q);
+
+  const fb = document.getElementById("feedback");
+  fb.className = "feedback show " + (correct ? "ok" : "no");
+  fb.innerHTML = `<b>${correct ? "Certinho." : "Não foi essa."}</b> ${q.exp || ""}`;
+  document.getElementById("scoreNow").textContent = `Acertos: ${s.score}`;
+  const nb = document.getElementById("nextBtn");
+  nb.style.display = "inline-flex";
+  nb.textContent = s.current === s.questions.length - 1 ? "Ver resultado →" : "Próxima →";
+}
+function nextQuestion() {
+  session.current++;
+  if (session.current >= session.questions.length) renderResult();
+  else renderQuestion();
+}
+function renderResult() {
+  const s = session;
+  const pct = Math.round((s.score / s.questions.length) * 100);
+  let msg;
+  if (pct >= 90) msg = "Excelente domínio da matéria. Bons estudos pra reta final!";
+  else if (pct >= 70) msg = "Bom resultado — reveja os pontos abaixo e tente de novo.";
+  else if (pct >= 50) msg = "Base razoável, mas ainda dá pra evoluir bastante.";
+  else msg = "Ainda precisa de mais revisão nesse conteúdo — é pra isso que serve o treino.";
+
+  let missedHtml = "";
+  if (s.missed.length > 0) {
+    missedHtml = `<div class="missed-list"><h2>Questões para revisar</h2>` +
+      s.missed.map(q => `<div class="missed-item"><div class="q">${q.q}</div><div class="a">Resposta certa: ${q.opts[q.correct]}</div></div>`).join("") +
+      `</div>`;
+  }
+  root.innerHTML = `
+  <div class="result">
+    <span style="font-size:38px;">📋</span>
+    <h1>Resultado — ${s.name}</h1>
+    <div class="score-big">${s.score}/${s.questions.length}</div>
+    <p>${pct}% de acerto. ${msg}</p>
+    <button class="primary" onclick="restartSame()">Tentar de novo</button>
+    <button class="primary ghost" style="margin-top:10px;" onclick="go('home')">Voltar ao início</button>
+    ${missedHtml}
+  </div>`;
+}
+function restartSame() { launchSession(session.name, session.color, session.questions); }
+
+/* ---------- STATS ---------- */
+function renderStats() {
+  setDeckColorVar("#1F4D3D");
+  const deckList = Object.values(decks);
+  const allQs = allQuestionsFlat();
+
+  // last 14 days chart
+  const days = [];
+  for (let i = 13; i >= 0; i--) days.push(addDays(todayStr(), -i));
+  const maxVal = Math.max(1, ...days.map(d => { const e = daily[d]; return e ? e.correct + e.wrong : 0; }));
+  const dayBars = days.map(d => {
+    const e = daily[d] || { correct: 0, wrong: 0 };
+    const hC = Math.round((e.correct / maxVal) * 80);
+    const hW = Math.round((e.wrong / maxVal) * 80);
+    const dd = new Date(d + "T00:00:00");
+    const lbl = dd.getDate();
+    return `<div class="day-col">
+      <div class="day-bar-wrap">
+        <div class="day-bar" style="height:${hW}px;background:var(--wrong)"></div>
+        <div class="day-bar" style="height:${hC}px;background:var(--correct)"></div>
+      </div>
+      <div class="day-label">${lbl}</div>
+    </div>`;
+  }).join("");
+
+  const deckBars = deckList.map(d => {
+    const acc = deckAccuracy(d.id);
+    return `<div class="bar-row">
+      <span class="lbl">${d.name}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${acc||0}%;background:${d.color}"></span></span>
+      <span class="bar-pct">${acc!==null ? acc+'%' : '—'}</span>
+    </div>`;
+  }).join("");
+
+  // topic breakdown across all decks
+  const topicMap = {};
+  allQs.forEach(q => {
+    const key = q.deckName + " · " + (q.topic || "—");
+    if (!topicMap[key]) topicMap[key] = { c: 0, t: 0, color: q.deckColor };
+    const p = progress[q.id];
+    if (p && p.seen) { topicMap[key].c += p.correct; topicMap[key].t += p.seen; }
+  });
+  const topicRows = Object.entries(topicMap)
+    .filter(([,v]) => v.t > 0)
+    .sort((a,b) => (a[1].c/a[1].t) - (b[1].c/b[1].t))
+    .slice(0, 8)
+    .map(([k,v]) => {
+      const pct = Math.round((v.c/v.t)*100);
+      return `<div class="bar-row">
+        <span class="lbl">${k}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${v.color}"></span></span>
+        <span class="bar-pct">${pct}%</span>
+      </div>`;
+    }).join("") || `<p class="notice">Responda algumas perguntas pra ver estatísticas por tópico.</p>`;
+
+  const weak = weakList(allQs);
+  const weakRows = weak.slice(0, 12).map(q => `
+    <div class="weak-item">
+      <span class="q">${q.q}</span>
+      <span class="weak-chip">${q.deckName}</span>
+    </div>`).join("") || `<p class="notice">Nenhum ponto fraco registrado ainda — bom sinal!</p>`;
+
+  root.innerHTML = `
+  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <h1 style="font-size:20px;color:var(--primary);margin:0 0 16px;">Estatísticas</h1>
+
+  <div class="stat-block">
+    <h3>Últimos 14 dias</h3>
+    <div class="day-chart">${dayBars}</div>
+    <p class="notice"><span style="color:var(--correct)">■</span> acertos &nbsp; <span style="color:var(--wrong)">■</span> erros</p>
+  </div>
+
+  <div class="stat-block">
+    <h3>Acerto por lei</h3>
+    ${deckBars}
+  </div>
+
+  <div class="stat-block">
+    <h3>Tópicos com mais dificuldade</h3>
+    ${topicRows}
+  </div>
+
+  <div class="stat-block">
+    <h3>Pontos fracos (${weak.length})</h3>
+    ${weakRows}
+    ${weak.length > 0 ? `<button class="primary block" style="margin-top:12px;" onclick="go('quiz-start',{deckId:'all', reviewOnly:true})">Revisar pontos fracos agora</button>` : ""}
+  </div>`;
+}
+
+/* ---------- IMPORT ---------- */
+function renderImport() {
+  setDeckColorVar("#1F4D3D");
+  root.innerHTML = `
+  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Importar perguntas</h1>
+  <p class="notice" style="margin-bottom:16px;">Carregue um arquivo .json com um baralho novo, ou com perguntas extras para um baralho já existente. Peça pra eu gerar esse arquivo a partir do texto de qualquer lei.</p>
+  <div class="field">
+    <label for="fileInput">Arquivo de perguntas (.json)</label>
+    <input type="file" id="fileInput" accept="application/json,.json">
+  </div>
+  <div id="previewArea"></div>
+  <footer class="hint">Formato esperado: {"deck":{"id","name","color"},"questions":[{"id","topic","q","opts","correct","exp"}]}</footer>`;
+
+  document.getElementById("fileInput").addEventListener("change", handleImportFile);
+}
+let pendingImport = null;
+function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    let data;
+    try { data = JSON.parse(ev.target.result); }
+    catch (err) { toast("Arquivo inválido: não é um JSON legível."); return; }
+
+    if (!data || !data.deck || !Array.isArray(data.questions)) {
+      toast("Formato não reconhecido. Confira o modelo no rodapé da tela.");
+      return;
+    }
+    const existing = decks[data.deck.id];
+    const existingIds = existing ? new Set(existing.questions.map(q => q.id)) : new Set();
+    const newQs = data.questions.filter(q => !existingIds.has(q.id));
+    const updateQs = data.questions.filter(q => existingIds.has(q.id));
+    pendingImport = data;
+
+    document.getElementById("previewArea").innerHTML = `
+    <div class="preview-box">
+      <b>${existing ? "Baralho existente: " : "Novo baralho: "} ${data.deck.name}</b><br>
+      ${newQs.length} pergunta(s) nova(s)${updateQs.length ? `, ${updateQs.length} já existente(s) (serão atualizadas)` : ""}.<br>
+      Total após importar: ${(existing ? existing.questions.length : 0) + newQs.length}.
+    </div>
+    <button class="primary block" onclick="confirmImport()">Confirmar importação</button>`;
+  };
+  reader.readAsText(file);
+}
+function confirmImport() {
+  if (!pendingImport) return;
+  const data = pendingImport;
+  const id = data.deck.id;
+  if (!decks[id]) {
+    const colorIdx = Object.keys(decks).length % PALETTE.length;
+    decks[id] = {
+      id, name: data.deck.name, color: data.deck.color || PALETTE[colorIdx],
+      emoji: data.deck.emoji || "📘", questions: []
+    };
+  }
+  const deck = decks[id];
+  const byId = {};
+  deck.questions.forEach(q => byId[q.id] = q);
+  data.questions.forEach(q => byId[q.id] = q);
+  deck.questions = Object.values(byId);
+  persistAll();
+  toast(`Importado: ${data.questions.length} pergunta(s) em "${deck.name}".`);
+  pendingImport = null;
+  go("home");
+}
+
+/* ---------- BACKUP ---------- */
+function renderBackup() {
+  setDeckColorVar("#1F4D3D");
+  root.innerHTML = `
+  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Backup</h1>
+  <p class="notice" style="margin-bottom:16px;">Seu progresso fica salvo só neste navegador. Exporte de vez em quando — principalmente antes de limpar o cache ou trocar de celular.</p>
+
+  <div class="stat-block">
+    <h3>Exportar</h3>
+    <p class="notice" style="margin-bottom:12px;">Gera um arquivo com todos os baralhos (inclusive importados) e todo o seu histórico de acertos/erros.</p>
+    <button class="primary block" id="exportBtn">Exportar backup (.json)</button>
+  </div>
+
+  <div class="stat-block">
+    <h3>Restaurar</h3>
+    <p class="notice" style="margin-bottom:12px;">Substitui os dados atuais deste navegador pelo conteúdo do arquivo de backup.</p>
+    <input type="file" id="restoreInput" accept="application/json,.json">
+    <div id="restorePreview"></div>
+  </div>`;
+
+  document.getElementById("exportBtn").addEventListener("click", exportBackup);
+  document.getElementById("restoreInput").addEventListener("change", handleRestoreFile);
+}
+function exportBackup() {
+  const backup = { type: "quiz-concurso-backup", version: 1, exportedAt: new Date().toISOString(), decks, progress, daily, streak };
+  const json = JSON.stringify(backup, null, 2);
+  try {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "backup-treino-concurso.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast("Backup baixado.");
+  } catch (err) {
+    toast("Não foi possível gerar o backup agora.");
+  }
+}
+let pendingRestore = null;
+function handleRestoreFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    let data;
+    try { data = JSON.parse(ev.target.result); }
+    catch (err) { toast("Arquivo inválido."); return; }
+    if (!data || data.type !== "quiz-concurso-backup") { toast("Esse arquivo não parece ser um backup deste app."); return; }
+    pendingRestore = data;
+    document.getElementById("restorePreview").innerHTML = `
+    <div class="preview-box">
+      Backup de ${new Date(data.exportedAt).toLocaleString("pt-BR")}<br>
+      ${Object.keys(data.decks||{}).length} baralho(s).<br>
+      <b>Isso substitui todo o seu progresso atual neste navegador.</b>
+    </div>
+    <button class="primary block" onclick="confirmRestore()">Restaurar este backup</button>`;
+  };
+  reader.readAsText(file);
+}
+function confirmRestore() {
+  if (!pendingRestore) return;
+  decks = pendingRestore.decks || decks;
+  progress = pendingRestore.progress || {};
+  daily = pendingRestore.daily || {};
+  streak = pendingRestore.streak || { lastDate: null, count: 0 };
+  persistAll();
+  toast("Progresso restaurado.");
+  pendingRestore = null;
+  go("home");
+}
+
+/* ============================= INIT ============================= */
+renderHome();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
