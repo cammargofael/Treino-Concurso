@@ -71,6 +71,27 @@
   .review-banner p { margin: 0 0 10px; font-size: 14px; line-height: 1.45; }
   .review-banner button { width: 100%; }
 
+  .exam-countdown { display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
+  .exam-countdown .exam-num { font-size:28px; font-weight:800; color:var(--accent); line-height:1; }
+  .exam-countdown .exam-label { font-size:12.5px; color:var(--ink-soft); }
+
+  .daily-goal { display:block; width:100%; text-align:left; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:10px 14px; margin-bottom:14px; cursor:pointer; color:var(--ink); }
+  .daily-goal .dg-top { display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; }
+  .daily-goal .dg-track { display:block; height:7px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .daily-goal .dg-fill { display:block; height:100%; background:var(--accent); border-radius:999px; transition:width .3s ease; }
+
+  .backup-nudge { font-size:12.5px; color:var(--accent); margin:-6px 0 14px; line-height:1.4; }
+
+  .simulado-card { display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line);
+    border-left:6px solid var(--accent); border-radius:var(--radius); padding:15px 16px; margin-bottom:18px;
+    cursor:pointer; text-align:left; width:100%; color:var(--ink); }
+  .simulado-card .emoji { font-size:26px; flex:none; }
+  .simulado-card .info { flex:1; min-width:0; }
+  .simulado-card .name { font-weight:700; font-size:15px; margin-bottom:2px; color:var(--ink); }
+  .simulado-card .sub { font-size:12.5px; color:var(--ink-soft); }
+  .simulado-card .pct { font-size:18px; font-weight:800; color:var(--accent); flex:none; }
+
   .deck-card {
     display:flex; align-items:center; gap: 14px; background: var(--surface); border: 1px solid var(--line);
     border-left: 6px solid var(--deck-color, var(--primary)); border-radius: var(--radius);
@@ -90,6 +111,16 @@
   .meta-row { display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
   .question { font-size:17px; line-height:1.5; font-weight:600; margin:0 0 18px; }
   .tag-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .quiz-timer { text-align:center; font-size:15px; font-weight:700; color:var(--accent); background:var(--surface);
+    border:1px solid var(--line); border-radius:999px; padding:7px 14px; margin-bottom:12px; width:fit-content;
+    margin-left:auto; margin-right:auto; }
+  .note-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:2px; line-height:1; opacity:.6; }
+  .note-btn:hover { opacity:1; }
+  .question-note { display:none; font-size:12.5px; font-style:italic; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent);
+    border-radius:8px; padding:8px 10px; margin:-8px 0 14px; }
+  button.opt.selected { border-color:var(--deck-color, var(--primary)); background:color-mix(in srgb, var(--deck-color, var(--primary)) 10%, transparent); }
+  button.opt.selected .letter { border-color:var(--deck-color, var(--primary)); color:var(--deck-color, var(--primary)); }
+  .missed-item .a.wrong-a { color:var(--wrong); }
   .tag { display:inline-block; font-size:11.5px; color: var(--deck-color, var(--primary));
     background: color-mix(in srgb, var(--deck-color, var(--primary)) 14%, transparent); padding:3px 9px; border-radius:999px; }
   .status-dot { width:9px; height:9px; border-radius:50%; flex:none; }
@@ -197,9 +228,21 @@
 /* ============================= DATA ============================= */
 const PALETTE = ["#1F4D3D", "#2E5CA8", "#A8562E", "#6B3FA0", "#B9862E", "#2E8E8A"];
 
+// Each area matches a line of the edital's exam-structure table. "area" on a deck tags every
+// question in it for the area-based stats view and for assembling a proportioned Simulado.
+const AREA_WEIGHTS = {
+  "Português": 5,
+  "Raciocínio Lógico": 5,
+  "Informática": 5,
+  "Legislação": 5,
+  "Conhecimentos Específicos": 20,
+};
+const AREA_ORDER = ["Português", "Raciocínio Lógico", "Informática", "Legislação", "Conhecimentos Específicos"];
+const EXAM_DATE = "2026-12-13"; // Edital Normativo nº 4/2026 - Prefeitura de Curitiba
+
 const SEED_DECKS = {
   "lei-organica": {
-    id: "lei-organica", name: "Lei Orgânica de Curitiba", color: "#1F4D3D", emoji: "🏛️",
+    id: "lei-organica", name: "Lei Orgânica de Curitiba", color: "#1F4D3D", emoji: "🏛️", area: "Legislação",
     questions: [
 {id:"LO-01",topic:"Título I",q:"Qual a natureza jurídica do Município de Curitiba segundo o art. 1º?",opts:["Pessoa jurídica de direito privado, com autonomia apenas administrativa","Pessoa jurídica de direito público interno, com autonomia política, administrativa e financeira","Ente federativo com autonomia apenas política","Órgão do Estado do Paraná sem autonomia própria","Pessoa jurídica de direito público externo"],correct:1,exp:"O art. 1º fixa a tríade: autonomia política, administrativa e financeira."},
 {id:"LO-02",topic:"Título I",q:"Qual é a data magna do Município de Curitiba?",opts:["19 de dezembro","7 de setembro","29 de março","24 de março","1º de janeiro"],correct:2,exp:"29 de março é a data magna de Curitiba (art. 9º)."},
@@ -274,8 +317,8 @@ let streak = loadJSON(LS.streak, { lastDate: null, count: 0 });
 // Maps a question-id PREFIX (the leading letters before the first hyphen) to the deck it belongs to.
 // Used to un-merge decks that got combined because an imported file reused an existing deck id.
 const PREFIX_DECK_META = {
-  "LOI": { id: "lei-organica-i", name: "Lei Orgânica I - Organização e Competências do Município", color: "#2E5CA8", emoji: "📜" },
-  "LOII": { id: "lei-organica-ii", name: "Lei Orgânica II - Poder Legislativo", color: "#A8562E", emoji: "🏢" },
+  "LOI": { id: "lei-organica-i", name: "Lei Orgânica I - Organização e Competências do Município", color: "#2E5CA8", emoji: "📜", area: "Legislação" },
+  "LOII": { id: "lei-organica-ii", name: "Lei Orgânica II - Poder Legislativo", color: "#A8562E", emoji: "🏢", area: "Legislação" },
 };
 function idPrefix(id) {
   const m = /^[A-Za-z]+/.exec(id || "");
@@ -292,7 +335,7 @@ function migrateDecks() {
       if (meta && meta.id !== deckId) {
         changed = true;
         if (!decks[meta.id]) {
-          decks[meta.id] = { id: meta.id, name: meta.name, color: meta.color, emoji: meta.emoji, questions: [] };
+          decks[meta.id] = { id: meta.id, name: meta.name, color: meta.color, emoji: meta.emoji, area: meta.area || "Legislação", questions: [] };
         }
         if (!decks[meta.id].questions.some((x) => x.id === q.id)) {
           decks[meta.id].questions.push(q);
@@ -397,6 +440,54 @@ function deckAnsweredCount(deckId) {
   const qs = deckQuestionsFlat(deckId);
   return qs.filter(q => progress[q.id] && progress[q.id].seen > 0).length;
 }
+// Older decks saved to localStorage before the "area" field existed don't have it — default
+// them to Legislação (every deck imported so far has been a municipal law) rather than requiring
+// a one-off data migration.
+function deckArea(deck) {
+  return (deck && deck.area) || "Legislação";
+}
+function questionsByArea(area) {
+  const out = [];
+  Object.values(decks).forEach(d => {
+    if (deckArea(d) === area) d.questions.forEach(q => out.push(Object.assign({ deckId: d.id, deckName: d.name, deckColor: d.color }, q)));
+  });
+  return out;
+}
+function areaAccuracy(area) {
+  const qs = questionsByArea(area);
+  let c = 0, t = 0;
+  qs.forEach(q => { const p = progress[q.id]; if (p && p.seen) { c += p.correct; t += p.seen; } });
+  return { answered: qs.filter(q => progress[q.id] && progress[q.id].seen > 0).length, total: qs.length, acc: t ? Math.round((c / t) * 100) : null };
+}
+function daysUntilExam() {
+  const today = new Date(todayStr() + "T00:00:00");
+  const exam = new Date(EXAM_DATE + "T00:00:00");
+  return Math.ceil((exam - today) / 86400000);
+}
+function todayAnsweredCount() {
+  const t = daily[todayStr()];
+  return t ? t.correct + t.wrong : 0;
+}
+const DAILY_GOAL_KEY = "qc_daily_goal";
+function getDailyGoal() {
+  const v = parseInt(localStorage.getItem(DAILY_GOAL_KEY), 10);
+  return Number.isFinite(v) && v > 0 ? v : 20;
+}
+function setDailyGoal(n) {
+  try { localStorage.setItem(DAILY_GOAL_KEY, String(n)); } catch (e) {}
+}
+const NOTES_KEY = "qc_notes_v1";
+let notes = loadJSON(NOTES_KEY, {});
+function saveNotes() { saveJSON(NOTES_KEY, notes); }
+const BACKUP_REMINDER_KEY = "qc_last_backup_at";
+function daysSinceBackup() {
+  const v = localStorage.getItem(BACKUP_REMINDER_KEY);
+  if (!v) return null;
+  return Math.floor((Date.now() - Number(v)) / 86400000);
+}
+function markBackedUpNow() {
+  try { localStorage.setItem(BACKUP_REMINDER_KEY, String(Date.now())); } catch (e) {}
+}
 
 /* ============================= UI STATE / ROUTER ============================= */
 const root = document.getElementById("appRoot");
@@ -412,38 +503,116 @@ function setDeckColorVar(color) {
   document.documentElement.style.setProperty("--deck-color", color || "#1F4D3D");
 }
 
+/* ---- Navigation / Android back-button handling ----
+   Every screen other than home is reached by pushing a history entry tagged with its name.
+   The hardware/gesture back button fires a native "popstate" event when that happens, which we
+   listen for below — so on-screen "← Voltar" links and the physical back button end up running
+   through the exact same code path (see history.back() calls throughout the UI). Home itself needs
+   two presses to actually exit: the first is intercepted, shows a toast, and re-arms a guard entry;
+   the second is let through, which is what closes an installed PWA on Android. */
+let previousScreen = "home";
+let onHomeExitArmed = false;
+let onHomeExitTimer = null;
+
+function pushScreen(screen) {
+  history.pushState({ screen }, "", "#" + screen);
+  previousScreen = screen;
+}
+
+function renderScreen(screen) {
+  if (screen === "stats") renderStats();
+  else if (screen === "import") renderImport();
+  else if (screen === "backup") renderBackup();
+  else if (screen === "files") renderFiles();
+  else if (screen === "quiz") renderQuizScreen();
+  else renderHome();
+}
+
+window.addEventListener("popstate", (e) => {
+  const screen = (e.state && e.state.screen) || "home";
+  if (screen === "home" && previousScreen === "home") {
+    // Already at home and the user pressed back again: this is a real exit attempt.
+    if (!onHomeExitArmed) {
+      onHomeExitArmed = true;
+      toast("Toque voltar mais uma vez para sair");
+      history.pushState({ screen: "home" }, "", "#home"); // re-arm: stay put for now
+      clearTimeout(onHomeExitTimer);
+      onHomeExitTimer = setTimeout(() => { onHomeExitArmed = false; }, 2000);
+    }
+    // Second press within the window: don't re-arm — let the back navigation proceed,
+    // which is what allows Android to actually close the app.
+    return;
+  }
+  if (screen === "home") session = null;
+  previousScreen = screen;
+  renderScreen(screen);
+});
+
 function go(view, params) {
   params = params || {};
-  if (view === "home") renderHome();
-  else if (view === "quiz-start") startQuiz(params.deckId, params.reviewOnly);
-  else if (view === "stats") renderStats();
-  else if (view === "import") renderImport();
-  else if (view === "backup") renderBackup();
-  else if (view === "files") renderFiles();
+  if (view === "home") {
+    // Explicit "go home" (not a back-button press) — land cleanly on home without growing
+    // the history stack indefinitely.
+    history.replaceState({ screen: "home" }, "", "#home");
+    previousScreen = "home";
+    session = null;
+    renderHome();
+    return;
+  }
+  if (view === "quiz-start") { pushScreen("quiz"); startQuiz(params.deckId, params.reviewOnly); }
+  else if (view === "simulado") { pushScreen("quiz"); startSimulado(); }
+  else if (view === "stats") { pushScreen("stats"); renderStats(); }
+  else if (view === "import") { pushScreen("import"); renderImport(); }
+  else if (view === "backup") { pushScreen("backup"); renderBackup(); }
+  else if (view === "files") { pushScreen("files"); renderFiles(); }
 }
 
 /* ---------- HOME ---------- */
 function renderHome() {
+  clearSessionTimer();
   setDeckColorVar("#1F4D3D");
   const deckList = Object.values(decks);
   const allQs = allQuestionsFlat();
   const due = dueCount(allQs);
+  const daysLeft = daysUntilExam();
+  const goal = getDailyGoal();
+  const todayCount = todayAnsweredCount();
+  const goalPct = Math.min(100, Math.round((todayCount / goal) * 100));
+  const backupDays = daysSinceBackup();
+  const showBackupNudge = backupDays === null ? allQs.some(q => progress[q.id]) : backupDays >= 4;
 
   let html = `
   <header class="top">
     <div class="brand">Treino de Concurso<small>Prefeitura de Curitiba</small></div>
     <div class="streak-chip">🔥 ${streak.count || 0}</div>
   </header>
+  <div class="exam-countdown">
+    <span class="exam-num">${daysLeft >= 0 ? daysLeft : 0}</span>
+    <span class="exam-label">${daysLeft >= 0 ? `dia${daysLeft===1?'':'s'} até a prova` : 'prova já realizada'} · 13/12/2026</span>
+  </div>
+  <button class="daily-goal" onclick="editDailyGoal()" title="Toque para ajustar a meta">
+    <span class="dg-top"><span>Meta de hoje</span><span>${todayCount}/${goal}</span></span>
+    <span class="dg-track"><span class="dg-fill" style="width:${goalPct}%"></span></span>
+  </button>
   <div class="toolbar">
     <button class="icon-btn" title="Importar perguntas" onclick="go('import')">📥</button>
     <button class="icon-btn" title="Estatísticas" onclick="go('stats')">📊</button>
     <button class="icon-btn" title="Backup" onclick="go('backup')">💾</button>
     <button class="icon-btn" title="Editais e leis (PDF)" onclick="go('files')">📄</button>
   </div>
+  ${showBackupNudge ? `<p class="backup-nudge">${backupDays === null ? "Você ainda não fez nenhum backup" : `Já fazem ${backupDays} dias desde seu último backup`} — considere exportar (💾).</p>` : ""}
   <div class="review-banner ${due > 0 ? 'show' : ''}">
     <p><b>${due} pergunta${due===1?'':'s'}</b> pronta${due===1?'':'s'} para revisão hoje.</p>
     <button class="primary block" onclick="startDueReview()">Revisar agora</button>
   </div>
+  <button class="simulado-card" onclick="go('simulado')">
+    <span class="emoji">⏱️</span>
+    <span class="info">
+      <span class="name">Simulado cronometrado</span>
+      <span class="sub">40 questões · 4 horas · proporção real da prova</span>
+    </span>
+    <span class="pct">→</span>
+  </button>
   <h2 class="section-title">Baralhos</h2>`;
 
   deckList.forEach(d => {
@@ -476,9 +645,17 @@ function renderHome() {
 
   root.innerHTML = html;
 }
+function editDailyGoal() {
+  const cur = getDailyGoal();
+  const input = prompt("Quantas perguntas você quer responder por dia?", String(cur));
+  if (!input) return;
+  const n = parseInt(input, 10);
+  if (Number.isFinite(n) && n > 0) { setDailyGoal(n); renderHome(); }
+}
 function startDueReview() {
   const allQs = allQuestionsFlat();
   const due = allQs.filter(q => isDue(q.id));
+  pushScreen("quiz");
   launchSession("Revisão do dia", "#B98A2E", due);
 }
 
@@ -491,13 +668,18 @@ function startQuiz(deckId, reviewOnly) {
   if (qs.length === 0) { toast("Não há perguntas nessa seleção ainda."); renderHome(); return; }
   launchSession(name, color, qs);
 }
-function launchSession(name, color, questions) {
+function launchSession(name, color, questions, opts) {
+  opts = opts || {};
   setDeckColorVar(color);
   session = {
     name, color,
     questions,
     order: shuffle(questions.map((_, i) => i)),
     current: 0, score: 0, missed: [],
+    timed: !!opts.timed, silent: !!opts.silent,
+    answers: opts.silent ? new Array(questions.length).fill(null) : null,
+    endTime: opts.timed ? Date.now() + opts.durationMs : null,
+    timerId: null,
   };
   renderQuizScreen();
 }
@@ -506,22 +688,86 @@ function shuffle(arr) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
   return a;
 }
+function clearSessionTimer() {
+  if (session && session.timerId) { clearInterval(session.timerId); session.timerId = null; }
+}
+
+/* ---------- SIMULADO ---------- */
+function startSimulado() {
+  const picked = [];
+  const shortfalls = [];
+  AREA_ORDER.forEach((area) => {
+    const avail = shuffle(questionsByArea(area));
+    const want = AREA_WEIGHTS[area];
+    const take = avail.slice(0, want);
+    picked.push(...take);
+    if (take.length < want) shortfalls.push(`${area} (${take.length}/${want})`);
+  });
+  if (picked.length === 0) { toast("Ainda não há perguntas suficientes para montar um simulado."); history.back(); return; }
+  if (shortfalls.length > 0) {
+    toast("Simulado parcial — faltam perguntas em: " + shortfalls.join(", "));
+  }
+  launchSession("Simulado cronometrado", "#B98A2E", shuffle(picked), { timed: true, silent: true, durationMs: 4 * 60 * 60 * 1000 });
+}
+function fmtClock(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+function tickTimer() {
+  const el = document.getElementById("quizTimer");
+  if (!el || !session || !session.timed) return;
+  const remaining = session.endTime - Date.now();
+  el.textContent = "⏱ " + fmtClock(remaining);
+  if (remaining <= 0) {
+    clearSessionTimer();
+    toast("Tempo esgotado — simulado finalizado.");
+    finishSimulado();
+  }
+}
+
 function renderQuizScreen() {
+  const s = session;
   root.innerHTML = `
-  <div class="back-row"><button class="back-link" onclick="confirmExitQuiz()">← Voltar</button></div>
+  <div class="back-row"><button class="back-link" onclick="history.back()">← Voltar</button></div>
+  ${s.timed ? `<div class="quiz-timer" id="quizTimer">⏱ --:--:--</div>` : ""}
   <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
   <div class="meta-row"><span id="counter"></span><span id="scoreNow"></span></div>
   <div class="card">
-    <div class="tag-row"><span class="tag" id="qTag"></span><span class="status-dot" id="statusDot"></span></div>
+    <div class="tag-row">
+      <span class="tag" id="qTag"></span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <button class="note-btn" id="noteBtn" title="Anotar sobre esta pergunta" onclick="editNoteForCurrent()">📝</button>
+        <span class="status-dot" id="statusDot"></span>
+      </span>
+    </div>
     <p class="question" id="qText"></p>
+    <p class="question-note" id="qNote"></p>
     <div class="options" id="options"></div>
     <div class="feedback" id="feedback"></div>
     <div class="next-row"><button class="primary" id="nextBtn" style="display:none"></button></div>
   </div>`;
   document.getElementById("nextBtn").addEventListener("click", nextQuestion);
+  if (s.timed) {
+    tickTimer();
+    s.timerId = setInterval(tickTimer, 1000);
+  }
   renderQuestion();
 }
-function confirmExitQuiz() { session = null; renderHome(); }
+function confirmExitQuiz() { history.back(); }
+
+function editNoteForCurrent() {
+  const s = session;
+  const q = s.questions[s.order[s.current]];
+  const cur = notes[q.id] || "";
+  const val = prompt("Sua anotação sobre esta pergunta (deixe em branco para remover):", cur);
+  if (val === null) return;
+  if (val.trim() === "") delete notes[q.id]; else notes[q.id] = val.trim();
+  saveNotes();
+  renderQuestion();
+}
 
 function renderQuestion() {
   const s = session;
@@ -529,26 +775,35 @@ function renderQuestion() {
   document.getElementById("qTag").textContent = `${s.name} · ${q.topic || ""}`;
   document.getElementById("qText").textContent = q.q;
   document.getElementById("counter").textContent = `Questão ${s.current+1} de ${s.questions.length}`;
-  document.getElementById("scoreNow").textContent = `Acertos: ${s.score}`;
+  document.getElementById("scoreNow").textContent = s.silent ? "" : `Acertos: ${s.score}`;
   document.getElementById("progressFill").style.width = `${(s.current/s.questions.length)*100}%`;
   const dot = document.getElementById("statusDot");
   const st = qStatus(q.id);
   dot.className = "status-dot status-" + st;
   dot.title = st === "new" ? "Nunca vista" : st === "mastered" ? "Dominada" : "Ponto fraco";
+  const noteEl = document.getElementById("qNote");
+  noteEl.textContent = notes[q.id] ? "📝 " + notes[q.id] : "";
+  noteEl.style.display = notes[q.id] ? "block" : "none";
   const fb = document.getElementById("feedback");
   fb.className = "feedback"; fb.textContent = "";
-  document.getElementById("nextBtn").style.display = "none";
+  const nb = document.getElementById("nextBtn");
+  nb.style.display = "none";
 
   const optsWrap = document.getElementById("options");
   optsWrap.innerHTML = "";
   const letters = ["A","B","C","D","E"];
+  const prevAnswer = s.silent ? s.answers[s.current] : null;
   q.opts.forEach((opt, i) => {
     const btn = document.createElement("button");
-    btn.className = "opt";
+    btn.className = "opt" + (prevAnswer === i ? " selected" : "");
     btn.innerHTML = `<span class="letter">${letters[i]}</span><span>${opt}</span>`;
-    btn.addEventListener("click", () => selectAnswer(i, q));
+    btn.addEventListener("click", () => s.silent ? selectAnswerSilent(i, q) : selectAnswer(i, q));
     optsWrap.appendChild(btn);
   });
+  if (s.silent) {
+    nb.style.display = "inline-flex";
+    nb.textContent = s.current === s.questions.length - 1 ? "Finalizar simulado →" : (prevAnswer !== null ? "Próxima →" : "Pular →");
+  }
 }
 function selectAnswer(i, q) {
   const s = session;
@@ -571,10 +826,42 @@ function selectAnswer(i, q) {
   nb.style.display = "inline-flex";
   nb.textContent = s.current === s.questions.length - 1 ? "Ver resultado →" : "Próxima →";
 }
+function selectAnswerSilent(i, q) {
+  const s = session;
+  s.answers[s.current] = i;
+  const buttons = document.querySelectorAll("#options button.opt");
+  buttons.forEach((b, idx) => b.classList.toggle("selected", idx === i));
+  const nb = document.getElementById("nextBtn");
+  nb.style.display = "inline-flex";
+  nb.textContent = s.current === s.questions.length - 1 ? "Finalizar simulado →" : "Próxima →";
+}
 function nextQuestion() {
   session.current++;
-  if (session.current >= session.questions.length) renderResult();
-  else renderQuestion();
+  if (session.current >= session.questions.length) {
+    if (session.silent) finishSimulado(); else renderResult();
+  } else {
+    renderQuestion();
+  }
+}
+function finishSimulado() {
+  const s = session;
+  clearSessionTimer();
+  let score = 0;
+  const review = [];
+  s.questions.forEach((q, idx) => {
+    const ans = s.answers[idx];
+    if (ans !== null) {
+      const correct = ans === q.correct;
+      recordAnswer(q.id, correct);
+      if (correct) score++;
+      review.push({ q, ans, correct });
+    } else {
+      review.push({ q, ans: null, correct: false });
+    }
+  });
+  s.score = score;
+  s.finalReview = review;
+  renderResult();
 }
 function renderResult() {
   const s = session;
@@ -586,7 +873,14 @@ function renderResult() {
   else msg = "Ainda precisa de mais revisão nesse conteúdo — é pra isso que serve o treino.";
 
   let missedHtml = "";
-  if (s.missed.length > 0) {
+  if (s.silent && s.finalReview) {
+    missedHtml = `<div class="missed-list"><h2>Revisão completa (${s.finalReview.length} questões)</h2>` +
+      s.finalReview.map(r => `<div class="missed-item">
+        <div class="q">${r.q.q}</div>
+        <div class="${r.correct ? 'a' : 'a wrong-a'}">${r.ans === null ? "Você pulou esta" : (r.correct ? "Você acertou" : "Sua resposta: " + r.q.opts[r.ans])}</div>
+        ${!r.correct ? `<div class="a">Resposta certa: ${r.q.opts[r.q.correct]}</div>` : ""}
+      </div>`).join("") + `</div>`;
+  } else if (s.missed.length > 0) {
     missedHtml = `<div class="missed-list"><h2>Questões para revisar</h2>` +
       s.missed.map(q => `<div class="missed-item"><div class="q">${q.q}</div><div class="a">Resposta certa: ${q.opts[q.correct]}</div></div>`).join("") +
       `</div>`;
@@ -597,15 +891,20 @@ function renderResult() {
     <h1>Resultado — ${s.name}</h1>
     <div class="score-big">${s.score}/${s.questions.length}</div>
     <p>${pct}% de acerto. ${msg}</p>
-    <button class="primary" onclick="restartSame()">Tentar de novo</button>
-    <button class="primary ghost" style="margin-top:10px;" onclick="go('home')">Voltar ao início</button>
+    <button class="primary" onclick="retrySession()">Tentar de novo</button>
+    <button class="primary ghost" style="margin-top:10px;" onclick="history.back()">Voltar ao início</button>
     ${missedHtml}
   </div>`;
+}
+function retrySession() {
+  if (session.timed) startSimulado();
+  else restartSame();
 }
 function restartSame() { launchSession(session.name, session.color, session.questions); }
 
 /* ---------- STATS ---------- */
 function renderStats() {
+  clearSessionTimer();
   setDeckColorVar("#1F4D3D");
   const deckList = Object.values(decks);
   const allQs = allQuestionsFlat();
@@ -659,6 +958,17 @@ function renderStats() {
       </div>`;
     }).join("") || `<p class="notice">Responda algumas perguntas pra ver estatísticas por tópico.</p>`;
 
+  const areaRows = AREA_ORDER.map(area => {
+    const { answered, total, acc } = areaAccuracy(area);
+    const weightPct = Math.round((AREA_WEIGHTS[area] / 40) * 100);
+    const barPct = acc !== null ? acc : 0;
+    return `<div class="bar-row">
+      <span class="lbl">${area} <span style="opacity:.6">(${weightPct}% da prova)</span></span>
+      <span class="bar-track"><span class="bar-fill" style="width:${barPct}%;background:var(--accent)"></span></span>
+      <span class="bar-pct">${acc !== null ? acc + '%' : (total === 0 ? 'sem conteúdo' : '—')}</span>
+    </div>`;
+  }).join("");
+
   const weak = weakList(allQs);
   const weakRows = weak.slice(0, 12).map(q => `
     <div class="weak-item">
@@ -667,13 +977,19 @@ function renderStats() {
     </div>`).join("") || `<p class="notice">Nenhum ponto fraco registrado ainda — bom sinal!</p>`;
 
   root.innerHTML = `
-  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <div class="back-row"><button class="back-link" onclick="history.back()">← Voltar</button></div>
   <h1 style="font-size:20px;color:var(--primary);margin:0 0 16px;">Estatísticas</h1>
 
   <div class="stat-block">
     <h3>Últimos 14 dias</h3>
     <div class="day-chart">${dayBars}</div>
     <p class="notice"><span style="color:var(--correct)">■</span> acertos &nbsp; <span style="color:var(--wrong)">■</span> erros</p>
+  </div>
+
+  <div class="stat-block">
+    <h3>Áreas do edital</h3>
+    ${areaRows}
+    <p class="notice">O peso entre parênteses é o quanto a área vale na prova (ex: Específicos = 50%). Áreas sem conteúdo ainda vão aparecer conforme você for importando mais baralhos.</p>
   </div>
 
   <div class="stat-block">
@@ -695,9 +1011,10 @@ function renderStats() {
 
 /* ---------- IMPORT ---------- */
 function renderImport() {
+  clearSessionTimer();
   setDeckColorVar("#1F4D3D");
   root.innerHTML = `
-  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <div class="back-row"><button class="back-link" onclick="history.back()">← Voltar</button></div>
   <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Importar perguntas</h1>
   <p class="notice" style="margin-bottom:16px;">Carregue um arquivo .json com um baralho novo, ou com perguntas extras para um baralho já existente. Peça pra eu gerar esse arquivo a partir do texto de qualquer lei.</p>
   <div class="field">
@@ -757,7 +1074,7 @@ function confirmImport() {
     const colorIdx = Object.keys(decks).length % PALETTE.length;
     decks[id] = {
       id, name: data.deck.name, color: data.deck.color || PALETTE[colorIdx],
-      emoji: data.deck.emoji || "📘", questions: []
+      emoji: data.deck.emoji || "📘", area: data.deck.area || "Legislação", questions: []
     };
   }
   const deck = decks[id];
@@ -768,14 +1085,15 @@ function confirmImport() {
   persistAll();
   toast(`Importado: ${data.questions.length} pergunta(s) em "${deck.name}".`);
   pendingImport = null;
-  go("home");
+  history.back();
 }
 
 /* ---------- BACKUP ---------- */
 function renderBackup() {
+  clearSessionTimer();
   setDeckColorVar("#1F4D3D");
   root.innerHTML = `
-  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <div class="back-row"><button class="back-link" onclick="history.back()">← Voltar</button></div>
   <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Backup</h1>
   <p class="notice" style="margin-bottom:16px;">Seu progresso fica salvo só neste navegador. Exporte de vez em quando — principalmente antes de limpar o cache ou trocar de celular.</p>
 
@@ -843,7 +1161,7 @@ function confirmRestore() {
   persistAll();
   toast("Progresso restaurado.");
   pendingRestore = null;
-  go("home");
+  history.back();
 }
 
 /* ============================= ARQUIVOS (PDFs) — IndexedDB ============================= */
@@ -906,9 +1224,10 @@ function fmtBytes(n) {
 }
 
 async function renderFiles() {
+  clearSessionTimer();
   setDeckColorVar("#1F4D3D");
   root.innerHTML = `
-  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <div class="back-row"><button class="back-link" onclick="history.back()">← Voltar</button></div>
   <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Editais e leis</h1>
   <p class="notice" style="margin-bottom:14px;">Guarde PDFs do edital e das leis aqui para ler a qualquer momento, mesmo sem internet. Ficam salvos só neste navegador.</p>
   <input type="file" id="fileAddInput" accept="application/pdf,.pdf" multiple style="display:none;">
@@ -1009,6 +1328,8 @@ async function deleteFile(id) {
 }
 
 /* ============================= INIT ============================= */
+history.replaceState({ screen: "home" }, "", "#home");
+previousScreen = "home";
 renderHome();
 
 if ("serviceWorker" in navigator) {
