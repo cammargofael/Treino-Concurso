@@ -56,7 +56,7 @@
     padding: 6px 11px; border-radius: 999px; font-size: 13px; font-weight:600; color: var(--accent); white-space:nowrap;
   }
   .icon-btn {
-    background: var(--surface); border:1px solid var(--line); border-radius: 10px;
+    background: var(--surface); border:1px solid var(--line); border-radius: 10px; color: var(--ink);
     width: 38px; height: 38px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px;
   }
   .toolbar { display:flex; gap:8px; margin-bottom: 18px; }
@@ -75,10 +75,11 @@
     display:flex; align-items:center; gap: 14px; background: var(--surface); border: 1px solid var(--line);
     border-left: 6px solid var(--deck-color, var(--primary)); border-radius: var(--radius);
     padding: 15px 16px; margin-bottom: 10px; cursor:pointer; text-align:left; width:100%;
+    color: var(--ink); font-family: inherit;
   }
   .deck-card .emoji { font-size: 26px; flex:none; }
   .deck-card .info { flex:1; min-width:0; }
-  .deck-card .name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .deck-card .name { font-weight: 700; font-size: 15px; margin-bottom: 2px; color: var(--ink); }
   .deck-card .sub { font-size: 12.5px; color: var(--ink-soft); }
   .deck-card .pct { font-size: 18px; font-weight: 800; color: var(--deck-color, var(--primary)); flex:none; }
 
@@ -158,6 +159,17 @@
   .weak-item { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); font-size:13px; }
   .weak-item:last-child { border-bottom:none; }
   .weak-item .q { flex:1; }
+
+  .file-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .file-row:last-child { border-bottom:none; }
+  .file-row .ficon { font-size:24px; flex:none; }
+  .file-row .finfo { flex:1; min-width:0; }
+  .file-row .fname { font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .file-row .fmeta { font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .file-row .factions { display:flex; gap:6px; flex:none; }
+  .file-row .factions button { background:var(--bg); border:1px solid var(--line); border-radius:8px; width:32px; height:32px; font-size:14px; cursor:pointer; color:var(--ink); }
+  .file-empty { text-align:center; color:var(--ink-soft); font-size:13.5px; padding:30px 10px; }
+  .file-add-btn { width:100%; padding:13px; border-radius:10px; border:1.5px dashed var(--line); background:transparent; color:var(--ink-soft); font-size:14px; cursor:pointer; margin-bottom:16px; }
   .weak-chip { font-size:11px; background: var(--wrong-bg); color:var(--wrong); padding:2px 8px; border-radius:999px; flex:none; }
 
   .field { margin-bottom: 14px; }
@@ -258,6 +270,48 @@ let progress = loadJSON(LS.progress, {});
 let daily = loadJSON(LS.daily, {});
 let streak = loadJSON(LS.streak, { lastDate: null, count: 0 });
 
+/* ============================= MIGRATION (fix decks merged by id collision) ============================= */
+// Maps a question-id PREFIX (the leading letters before the first hyphen) to the deck it belongs to.
+// Used to un-merge decks that got combined because an imported file reused an existing deck id.
+const PREFIX_DECK_META = {
+  "LOI": { id: "lei-organica-i", name: "Lei Orgânica I - Organização e Competências do Município", color: "#2E5CA8", emoji: "📜" },
+  "LOII": { id: "lei-organica-ii", name: "Lei Orgânica II - Poder Legislativo", color: "#A8562E", emoji: "🏢" },
+};
+function idPrefix(id) {
+  const m = /^[A-Za-z]+/.exec(id || "");
+  return m ? m[0] : "";
+}
+function migrateDecks() {
+  if (localStorage.getItem("qc_migrated_v1")) return;
+  let changed = false;
+  Object.keys(decks).forEach((deckId) => {
+    const deck = decks[deckId];
+    const keep = [];
+    deck.questions.forEach((q) => {
+      const meta = PREFIX_DECK_META[idPrefix(q.id)];
+      if (meta && meta.id !== deckId) {
+        changed = true;
+        if (!decks[meta.id]) {
+          decks[meta.id] = { id: meta.id, name: meta.name, color: meta.color, emoji: meta.emoji, questions: [] };
+        }
+        if (!decks[meta.id].questions.some((x) => x.id === q.id)) {
+          decks[meta.id].questions.push(q);
+        }
+      } else {
+        keep.push(q);
+      }
+    });
+    deck.questions = keep;
+  });
+  // Remove decks left with zero questions as a result of the split (keeps the home screen tidy)
+  Object.keys(decks).forEach((deckId) => {
+    if (decks[deckId].questions.length === 0 && deckId !== "lei-organica") delete decks[deckId];
+  });
+  if (changed) persistAll();
+  localStorage.setItem("qc_migrated_v1", "1");
+}
+migrateDecks();
+
 function persistAll() {
   saveJSON(LS.decks, decks);
   saveJSON(LS.progress, progress);
@@ -339,6 +393,10 @@ function deckAccuracy(deckId) {
   qs.forEach(q => { const p = progress[q.id]; if (p && p.seen) { c += p.correct; t += p.seen; } });
   return t ? Math.round((c / t) * 100) : null;
 }
+function deckAnsweredCount(deckId) {
+  const qs = deckQuestionsFlat(deckId);
+  return qs.filter(q => progress[q.id] && progress[q.id].seen > 0).length;
+}
 
 /* ============================= UI STATE / ROUTER ============================= */
 const root = document.getElementById("appRoot");
@@ -361,6 +419,7 @@ function go(view, params) {
   else if (view === "stats") renderStats();
   else if (view === "import") renderImport();
   else if (view === "backup") renderBackup();
+  else if (view === "files") renderFiles();
 }
 
 /* ---------- HOME ---------- */
@@ -379,6 +438,7 @@ function renderHome() {
     <button class="icon-btn" title="Importar perguntas" onclick="go('import')">📥</button>
     <button class="icon-btn" title="Estatísticas" onclick="go('stats')">📊</button>
     <button class="icon-btn" title="Backup" onclick="go('backup')">💾</button>
+    <button class="icon-btn" title="Editais e leis (PDF)" onclick="go('files')">📄</button>
   </div>
   <div class="review-banner ${due > 0 ? 'show' : ''}">
     <p><b>${due} pergunta${due===1?'':'s'}</b> pronta${due===1?'':'s'} para revisão hoje.</p>
@@ -388,12 +448,16 @@ function renderHome() {
 
   deckList.forEach(d => {
     const acc = deckAccuracy(d.id);
+    const answered = deckAnsweredCount(d.id);
+    const sub = answered > 0
+      ? `${answered}/${d.questions.length} respondidas · ${acc}% de acerto`
+      : `${d.questions.length} perguntas · ainda não treinado`;
     html += `
     <button class="deck-card" style="--deck-color:${d.color}" onclick="go('quiz-start',{deckId:'${d.id}'})">
       <span class="emoji">${d.emoji || "📘"}</span>
       <span class="info">
         <span class="name">${d.name}</span>
-        <span class="sub">${d.questions.length} perguntas${acc!==null ? ' · ' + acc + '% de acerto' : ' · ainda não treinado'}</span>
+        <span class="sub">${sub}</span>
       </span>
       <span class="pct">${acc !== null ? acc + '%' : '—'}</span>
     </button>`;
@@ -665,9 +729,19 @@ function handleImportFile(e) {
     const updateQs = data.questions.filter(q => existingIds.has(q.id));
     pendingImport = data;
 
+    const idMismatch = existing && existing.name !== data.deck.name;
+    const warning = idMismatch ? `
+    <div class="preview-box" style="border-color:var(--wrong);color:var(--wrong);">
+      <b>Atenção:</b> já existe um baralho com este identificador, mas com nome diferente
+      ("${existing.name}"). Se continuar, estas perguntas serão adicionadas a ESSE baralho
+      existente, não a um baralho novo. Se não é isso que você quer, cancele e confira o
+      campo "id" do arquivo.
+    </div>` : "";
+
     document.getElementById("previewArea").innerHTML = `
+    ${warning}
     <div class="preview-box">
-      <b>${existing ? "Baralho existente: " : "Novo baralho: "} ${data.deck.name}</b><br>
+      <b>${existing ? "Baralho existente: " : "Novo baralho: "} ${existing ? existing.name : data.deck.name}</b><br>
       ${newQs.length} pergunta(s) nova(s)${updateQs.length ? `, ${updateQs.length} já existente(s) (serão atualizadas)` : ""}.<br>
       Total após importar: ${(existing ? existing.questions.length : 0) + newQs.length}.
     </div>
@@ -770,6 +844,168 @@ function confirmRestore() {
   toast("Progresso restaurado.");
   pendingRestore = null;
   go("home");
+}
+
+/* ============================= ARQUIVOS (PDFs) — IndexedDB ============================= */
+const FILES_DB_NAME = "qc_files_db";
+const FILES_STORE = "files";
+
+function filesDbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FILES_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(FILES_STORE)) {
+        db.createObjectStore(FILES_STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function filesDbPut(record) {
+  const db = await filesDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, "readwrite");
+    tx.objectStore(FILES_STORE).put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function filesDbGetAll() {
+  const db = await filesDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, "readonly");
+    const req = tx.objectStore(FILES_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function filesDbGet(id) {
+  const db = await filesDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, "readonly");
+    const req = tx.objectStore(FILES_STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function filesDbDelete(id) {
+  const db = await filesDbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILES_STORE, "readwrite");
+    tx.objectStore(FILES_STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function fmtBytes(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
+  return (n / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+async function renderFiles() {
+  setDeckColorVar("#1F4D3D");
+  root.innerHTML = `
+  <div class="back-row"><button class="back-link" onclick="go('home')">← Voltar</button></div>
+  <h1 style="font-size:20px;color:var(--primary);margin:0 0 8px;">Editais e leis</h1>
+  <p class="notice" style="margin-bottom:14px;">Guarde PDFs do edital e das leis aqui para ler a qualquer momento, mesmo sem internet. Ficam salvos só neste navegador.</p>
+  <input type="file" id="fileAddInput" accept="application/pdf,.pdf" multiple style="display:none;">
+  <button class="file-add-btn" id="fileAddBtn">+ Adicionar PDF</button>
+  <div id="fileListArea"><p class="notice">Carregando...</p></div>`;
+
+  document.getElementById("fileAddBtn").addEventListener("click", () => {
+    document.getElementById("fileAddInput").click();
+  });
+  document.getElementById("fileAddInput").addEventListener("change", handleAddFiles);
+
+  await refreshFileList();
+}
+
+async function refreshFileList() {
+  const area = document.getElementById("fileListArea");
+  if (!area) return;
+  let records;
+  try { records = await filesDbGetAll(); }
+  catch (e) { area.innerHTML = `<p class="notice">Não foi possível acessar o armazenamento local.</p>`; return; }
+
+  if (records.length === 0) {
+    area.innerHTML = `<div class="file-empty">Nenhum arquivo ainda. Toque em "+ Adicionar PDF" para guardar o edital ou uma lei.</div>`;
+    return;
+  }
+  records.sort((a, b) => b.addedAt - a.addedAt);
+  area.innerHTML = records.map((r) => `
+    <div class="file-row">
+      <span class="ficon">📄</span>
+      <span class="finfo">
+        <div class="fname">${r.name}</div>
+        <div class="fmeta">${fmtBytes(r.size)}</div>
+      </span>
+      <span class="factions">
+        <button title="Renomear" onclick="renameFile('${r.id}')">✏️</button>
+        <button title="Abrir" onclick="openFile('${r.id}')">📤</button>
+        <button title="Excluir" onclick="deleteFile('${r.id}')">🗑️</button>
+      </span>
+    </div>`).join("");
+}
+
+async function handleAddFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (files.length === 0) return;
+  for (const file of files) {
+    const record = {
+      id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random())),
+      name: file.name,
+      type: file.type || "application/pdf",
+      size: file.size,
+      addedAt: Date.now(),
+      blob: file,
+    };
+    try { await filesDbPut(record); }
+    catch (err) { toast("Não foi possível salvar " + file.name); }
+  }
+  e.target.value = "";
+  toast(files.length > 1 ? "Arquivos adicionados." : "Arquivo adicionado.");
+  refreshFileList();
+}
+
+async function renameFile(id) {
+  const rec = await filesDbGet(id);
+  if (!rec) return;
+  const newName = prompt("Novo nome do arquivo:", rec.name);
+  if (!newName || newName.trim() === "" || newName === rec.name) return;
+  rec.name = newName.trim();
+  await filesDbPut(rec);
+  toast("Renomeado.");
+  refreshFileList();
+}
+
+async function openFile(id) {
+  const rec = await filesDbGet(id);
+  if (!rec) return;
+  try {
+    const file = new File([rec.blob], rec.name, { type: rec.type || "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: rec.name });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return; // user cancelled the share sheet
+  }
+  // Fallback (e.g. desktop Chrome, or share unsupported): open in a new tab.
+  const url = URL.createObjectURL(rec.blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function deleteFile(id) {
+  const rec = await filesDbGet(id);
+  if (!rec) return;
+  if (!confirm(`Excluir "${rec.name}"? Essa ação não pode ser desfeita.`)) return;
+  await filesDbDelete(id);
+  toast("Arquivo excluído.");
+  refreshFileList();
 }
 
 /* ============================= INIT ============================= */
