@@ -193,6 +193,7 @@
 
   .file-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
   .file-row:last-child { border-bottom:none; }
+  .file-row .file-open-area { display:flex; align-items:center; gap:12px; flex:1; min-width:0; background:none; border:none; padding:0; margin:0; cursor:pointer; text-align:left; color:var(--ink); font-family:inherit; }
   .file-row .ficon { font-size:24px; flex:none; }
   .file-row .finfo { flex:1; min-width:0; }
   .file-row .fname { font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1256,11 +1257,13 @@ async function refreshFileList() {
   records.sort((a, b) => b.addedAt - a.addedAt);
   area.innerHTML = records.map((r) => `
     <div class="file-row">
-      <span class="ficon">📄</span>
-      <span class="finfo">
-        <div class="fname">${r.name}</div>
-        <div class="fmeta">${fmtBytes(r.size)}</div>
-      </span>
+      <button class="file-open-area" onclick="openFile('${r.id}')" title="Toque para abrir">
+        <span class="ficon">📄</span>
+        <span class="finfo">
+          <div class="fname">${r.name}</div>
+          <div class="fmeta">${fmtBytes(r.size)}</div>
+        </span>
+      </button>
       <span class="factions">
         <button title="Renomear" onclick="renameFile('${r.id}')">✏️</button>
         <button title="Abrir" onclick="openFile('${r.id}')">📤</button>
