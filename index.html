@@ -82,6 +82,8 @@
   .daily-goal .dg-fill { display:block; height:100%; background:var(--accent); border-radius:999px; transition:width .3s ease; }
 
   .backup-nudge { font-size:12.5px; color:var(--accent); margin:-6px 0 14px; line-height:1.4; }
+  .resume-banner { background:var(--surface); border:1.5px solid var(--primary); border-radius:var(--radius); padding:14px 16px; margin-bottom:18px; }
+  .resume-banner p { margin:0 0 10px; font-size:13.5px; line-height:1.45; }
 
   .simulado-card { display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line);
     border-left:6px solid var(--accent); border-radius:var(--radius); padding:15px 16px; margin-bottom:18px;
@@ -490,6 +492,66 @@ function markBackedUpNow() {
   try { localStorage.setItem(BACKUP_REMINDER_KEY, String(Date.now())); } catch (e) {}
 }
 
+/* ============================= RESUME IN-PROGRESS SESSION ============================= */
+// A quiz session only lives in memory — if Android kills the app mid-quiz (e.g. switching
+// apps), that in-memory state is gone. This mirrors just enough of it to localStorage after
+// every answer/question so the app can rebuild the exact same run (same questions, same order,
+// same position and score) on next load, instead of starting over from question 1.
+const SESSION_KEY = "qc_active_session_v1";
+
+function findQuestionById(id) {
+  for (const d of Object.values(decks)) {
+    const q = d.questions.find((x) => x.id === id);
+    if (q) return Object.assign({ deckId: d.id, deckName: d.name, deckColor: d.color }, q);
+  }
+  return null;
+}
+function persistSession() {
+  const s = session;
+  if (!s) { clearPersistedSession(); return; }
+  saveJSON(SESSION_KEY, {
+    name: s.name, color: s.color,
+    questionIds: s.questions.map((q) => q.id),
+    order: s.order,
+    current: s.current,
+    score: s.score,
+    missedIds: s.missed.map((q) => q.id),
+    timed: s.timed, silent: s.silent,
+    endTime: s.endTime,
+    answers: s.answers,
+  });
+}
+function clearPersistedSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+}
+function loadPersistedSession() {
+  const snap = loadJSON(SESSION_KEY, null);
+  if (!snap) return null;
+  if (snap.current >= snap.questionIds.length) { clearPersistedSession(); return null; }
+  return snap;
+}
+function resumeSession() {
+  const snap = loadPersistedSession();
+  if (!snap) return;
+  const questions = snap.questionIds.map(findQuestionById);
+  if (questions.some((q) => !q)) {
+    clearPersistedSession();
+    toast("Não foi possível retomar — algo mudou nesse baralho.");
+    renderHome();
+    return;
+  }
+  setDeckColorVar(snap.color);
+  session = {
+    name: snap.name, color: snap.color,
+    questions, order: snap.order, current: snap.current, score: snap.score,
+    missed: snap.missedIds.map(findQuestionById).filter(Boolean),
+    timed: snap.timed, silent: snap.silent, endTime: snap.endTime, answers: snap.answers,
+    timerId: null,
+  };
+  pushScreen("quiz");
+  renderQuizScreen();
+}
+
 /* ============================= UI STATE / ROUTER ============================= */
 const root = document.getElementById("appRoot");
 let session = null; // {scopeName, color, questions, order, current, score, missed, deckColorVar}
@@ -602,6 +664,7 @@ function renderHome() {
     <button class="icon-btn" title="Editais e leis (PDF)" onclick="go('files')">📄</button>
   </div>
   ${showBackupNudge ? `<p class="backup-nudge">${backupDays === null ? "Você ainda não fez nenhum backup" : `Já fazem ${backupDays} dias desde seu último backup`} — considere exportar (💾).</p>` : ""}
+  ${renderResumeBanner()}
   <div class="review-banner ${due > 0 ? 'show' : ''}">
     <p><b>${due} pergunta${due===1?'':'s'}</b> pronta${due===1?'':'s'} para revisão hoje.</p>
     <button class="primary block" onclick="startDueReview()">Revisar agora</button>
@@ -646,6 +709,22 @@ function renderHome() {
 
   root.innerHTML = html;
 }
+function renderResumeBanner() {
+  const snap = loadPersistedSession();
+  if (!snap) return "";
+  return `
+  <div class="resume-banner">
+    <p><b>Você parou no meio de uma sessão:</b> ${snap.name} — questão ${snap.current + 1} de ${snap.questionIds.length} (${snap.score} acerto${snap.score===1?'':'s'} até agora).</p>
+    <div style="display:flex;gap:8px;">
+      <button class="primary" style="flex:1;" onclick="resumeSession()">Continuar</button>
+      <button class="primary ghost" style="flex:none;" onclick="dismissResume()">Descartar</button>
+    </div>
+  </div>`;
+}
+function dismissResume() {
+  clearPersistedSession();
+  renderHome();
+}
 function editDailyGoal() {
   const cur = getDailyGoal();
   const input = prompt("Quantas perguntas você quer responder por dia?", String(cur));
@@ -682,6 +761,7 @@ function launchSession(name, color, questions, opts) {
     endTime: opts.timed ? Date.now() + opts.durationMs : null,
     timerId: null,
   };
+  persistSession();
   renderQuizScreen();
 }
 function shuffle(arr) {
@@ -826,6 +906,7 @@ function selectAnswer(i, q) {
   const nb = document.getElementById("nextBtn");
   nb.style.display = "inline-flex";
   nb.textContent = s.current === s.questions.length - 1 ? "Ver resultado →" : "Próxima →";
+  persistSession();
 }
 function selectAnswerSilent(i, q) {
   const s = session;
@@ -835,12 +916,14 @@ function selectAnswerSilent(i, q) {
   const nb = document.getElementById("nextBtn");
   nb.style.display = "inline-flex";
   nb.textContent = s.current === s.questions.length - 1 ? "Finalizar simulado →" : "Próxima →";
+  persistSession();
 }
 function nextQuestion() {
   session.current++;
   if (session.current >= session.questions.length) {
     if (session.silent) finishSimulado(); else renderResult();
   } else {
+    persistSession();
     renderQuestion();
   }
 }
@@ -865,6 +948,7 @@ function finishSimulado() {
   renderResult();
 }
 function renderResult() {
+  clearPersistedSession();
   const s = session;
   const pct = Math.round((s.score / s.questions.length) * 100);
   let msg;
