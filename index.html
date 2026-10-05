@@ -1257,7 +1257,7 @@ async function refreshFileList() {
   records.sort((a, b) => b.addedAt - a.addedAt);
   area.innerHTML = records.map((r) => `
     <div class="file-row">
-      <button class="file-open-area" onclick="openFile('${r.id}')" title="Toque para abrir">
+      <button class="file-open-area" onclick="openFile('${r.id}')" title="Toque para baixar e abrir">
         <span class="ficon">📄</span>
         <span class="finfo">
           <div class="fname">${r.name}</div>
@@ -1266,7 +1266,7 @@ async function refreshFileList() {
       </button>
       <span class="factions">
         <button title="Renomear" onclick="renameFile('${r.id}')">✏️</button>
-        <button title="Abrir" onclick="openFile('${r.id}')">📤</button>
+        <button title="Compartilhar" onclick="shareFile('${r.id}')">📤</button>
         <button title="Excluir" onclick="deleteFile('${r.id}')">🗑️</button>
       </span>
     </div>`).join("");
@@ -1304,6 +1304,29 @@ async function renameFile(id) {
 }
 
 async function openFile(id) {
+  // Downloads the PDF to the device's Downloads folder, just like any normal PDF download.
+  // Android then shows its own "download complete" notification, and tapping that triggers
+  // the native app chooser (Abrir com) with every installed PDF reader listed — the share
+  // sheet (Web Share API) doesn't reliably offer that "open with" chooser on every device,
+  // so this is the more dependable path for actually opening the file in another app.
+  const rec = await filesDbGet(id);
+  if (!rec) return;
+  try {
+    const url = URL.createObjectURL(rec.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = rec.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast("Baixado — toque na notificação de download para abrir com seu app de PDF.");
+  } catch (err) {
+    toast("Não foi possível baixar o arquivo agora.");
+  }
+}
+
+async function shareFile(id) {
   const rec = await filesDbGet(id);
   if (!rec) return;
   try {
@@ -1315,10 +1338,7 @@ async function openFile(id) {
   } catch (err) {
     if (err && err.name === "AbortError") return; // user cancelled the share sheet
   }
-  // Fallback (e.g. desktop Chrome, or share unsupported): open in a new tab.
-  const url = URL.createObjectURL(rec.blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast("Compartilhamento não disponível neste navegador — use o botão 📄 para baixar.");
 }
 
 async function deleteFile(id) {
