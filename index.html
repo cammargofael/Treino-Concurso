@@ -874,11 +874,16 @@ function renderQuestion() {
   optsWrap.innerHTML = "";
   const letters = ["A","B","C","D","E"];
   const prevAnswer = s.silent ? s.answers[s.current] : null;
-  q.opts.forEach((opt, i) => {
+  // Display order of the alternatives is shuffled every time a question is shown, so the correct
+  // answer is not always in the same position (data files keep it at a fixed index). s.perm[d] is
+  // the ORIGINAL index of the alternative shown at display position d; answers, stats and the
+  // result screens keep using original indices, so nothing else needs to know about the shuffle.
+  s.perm = shuffle(q.opts.map((_, i) => i));
+  s.perm.forEach((origIdx, displayIdx) => {
     const btn = document.createElement("button");
-    btn.className = "opt" + (prevAnswer === i ? " selected" : "");
-    btn.innerHTML = `<span class="letter">${letters[i]}</span><span>${opt}</span>`;
-    btn.addEventListener("click", () => s.silent ? selectAnswerSilent(i, q) : selectAnswer(i, q));
+    btn.className = "opt" + (prevAnswer === origIdx ? " selected" : "");
+    btn.innerHTML = `<span class="letter">${letters[displayIdx]}</span><span>${q.opts[origIdx]}</span>`;
+    btn.addEventListener("click", () => s.silent ? selectAnswerSilent(origIdx, q) : selectAnswer(origIdx, q));
     optsWrap.appendChild(btn);
   });
   if (s.silent) {
@@ -890,9 +895,10 @@ function selectAnswer(i, q) {
   const s = session;
   const buttons = document.querySelectorAll("#options button.opt");
   buttons.forEach((b, idx) => {
+    const orig = s.perm[idx];
     b.disabled = true;
-    if (idx === q.correct) b.classList.add("correct");
-    else if (idx === i) b.classList.add("wrong");
+    if (orig === q.correct) b.classList.add("correct");
+    else if (orig === i) b.classList.add("wrong");
     else b.classList.add("dim");
   });
   const correct = i === q.correct;
@@ -912,7 +918,7 @@ function selectAnswerSilent(i, q) {
   const s = session;
   s.answers[s.current] = i;
   const buttons = document.querySelectorAll("#options button.opt");
-  buttons.forEach((b, idx) => b.classList.toggle("selected", idx === i));
+  buttons.forEach((b, idx) => b.classList.toggle("selected", s.perm[idx] === i));
   const nb = document.getElementById("nextBtn");
   nb.style.display = "inline-flex";
   nb.textContent = s.current === s.questions.length - 1 ? "Finalizar simulado →" : "Próxima →";
